@@ -1,0 +1,59 @@
+#pragma once
+
+#include "CoreMinimal.h"
+#include "MyEnums.generated.h"
+
+UENUM(BlueprintType)
+enum class ESkillState : uint8
+{
+	Ready UMETA(DisplayName = "Ready"),
+	Windup UMETA(DisplayName = "Windup"),
+	Active UMETA(DisplayName = "Active"),
+	Recovery UMETA(DisplayName = "Recovery")
+};
+UENUM(BlueprintType)
+enum class  EActivationInput : uint8
+{
+	Tap UMETA(DisplayName = "Tap"),
+	Pressed UMETA(DisplayName = "Pressed"),
+	Released UMETA(DisplayName = "Released"),
+};
+
+UENUM(BlueprintType)
+enum class EAnimMontageState : uint8
+{
+	Started,
+	Interrupted,
+	Completed,
+	WhileActive,
+	NotifyBegin
+};
+
+UENUM(BlueprintType)
+enum class EInterruptibleState : uint8
+{
+	None UMETA(DisplayName = "None"),
+	Any UMETA(DisplayName = "Any"),
+	Windup UMETA(DisplayName = "Windup"),
+	Active UMETA(DisplayName = "Active"),
+	Recharge UMETA(DisplayName = "Recharge"),
+	WindupOrActive UMETA(DisplayName = "Windup Or Active"),
+	WindupOrRecharge UMETA(DisplayName = "Windup Or Recovery"),
+	ActiveOrRecharge UMETA(DisplayName = "Active Or Recharge"),
+};
+
+UENUM(BlueprintType)
+enum class EMotionWarpTranslationMode : uint8
+{
+	None                UMETA(DisplayName="None"),
+	ToTargetActor       UMETA(DisplayName="Move To Target Actor"),
+	Forward             UMETA(DisplayName="Move Forward"),
+	Backward            UMETA(DisplayName="Move Backward")
+};
+
+UENUM(BlueprintType)
+enum class EMotionWarpRotationMode : uint8
+{
+	None                UMETA(DisplayName="None"),
+	ToTargetActor       UMETA(DisplayName="Rotate To Target Actor")
+};
