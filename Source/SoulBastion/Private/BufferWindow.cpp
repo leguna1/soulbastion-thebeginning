@@ -10,7 +10,7 @@ void UBufferWindow::NotifyBegin(USkeletalMeshComponent* MeshComp, UAnimSequenceB
 	{
 		return;
 	}
-
+	
 	CachedOwner = MeshComp->GetOwner();
 	if (!CachedOwner)
 		return;
@@ -35,7 +35,7 @@ void UBufferWindow::NotifyEnd(USkeletalMeshComponent* MeshComp, UAnimSequenceBas
 	
 	if (AS->ActiveSkill)
 	{
-		AS->SetActiveSkillState(ESkillState::Recovery);
+		AS->SetActiveSkillState(ESkillState::Recovery, 0.f);
 	}
 	
 

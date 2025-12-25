@@ -3,57 +3,19 @@
 #include "CoreMinimal.h"
 #include "Components/ActorComponent.h"
 #include "SoulBastion/Data/MyStructs.h"
+#include "AbilitySystem.h"
+#include "UtilityBox.h"
 #include "StatSystem.generated.h"
 
-// -------------------------
-// Event payload for stat changes
-// -------------------------
-USTRUCT(BlueprintType)
-struct FStatChangedEvent
-{
-    GENERATED_BODY()
 
-    UPROPERTY(BlueprintReadOnly)
-    FGameplayTag StatTag;        // Which stat changed
-    
-
-    UPROPERTY(BlueprintReadOnly)
-    float ChangeValue;            // Amount of change applied
-
-    UPROPERTY(BlueprintReadOnly)
-    AActor* SourceModifier;       // Who caused the change
-
-    FStatChangedEvent()
-        : StatTag(), ChangeValue(0.f), SourceModifier(nullptr)
-    {}
-};
-
-// -------------------------
-// Event payload for death
-// -------------------------
-USTRUCT(BlueprintType)
-struct FOnDeathEvent
-{
-    GENERATED_BODY()
-
-    UPROPERTY(BlueprintReadOnly)
-    AActor* Killer;          // Who caused death
-
-    UPROPERTY(BlueprintReadOnly)
-    float Damage;            // Killing blow value
-
-    FOnDeathEvent()
-        : Killer(nullptr), Damage(0.f)
-    {}
-};
-
-// -------------------------
-// Delegates
-// -------------------------
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnStatChanged, FStatChangedEvent, StatEvent);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnDeath, FOnDeathEvent, DeathEvent);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnSoulForceChanged, float, NewValue);
 
 class UNiagaraSystem;
+class UAbilitySystem;
+class UUtilityBox;
+
 UCLASS(ClassGroup=(Custom), Blueprintable, meta=(BlueprintSpawnableComponent))
 class SOULBASTION_API UStatSystem : public UActorComponent
 {
@@ -74,74 +36,65 @@ protected:
     FTimerHandle RecoveryTimerHandle;
     FTimerHandle CombatTimeoutHandle;
     
-    UFUNCTION()
-    void HandleStatChanged(FStatChangedEvent StatEvent);
-
-    void EnterCombat();
-    void LeaveCombat();
-
-    float ComputeRecoveryMultiplier() const;
+    
+    UPROPERTY(BlueprintReadOnly, Category="Stats")
+    UAbilitySystem* AbilitySystem = nullptr;
+    
+    UPROPERTY()
+    UUtilityBox* UtilityBox = nullptr;
+    
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Stats | Soul Force")
+    FSoulForceData SoulForceData;
 
 public:
-    // -------------------------
-    // Replicated stats array
-    // -------------------------
+    
+    //Stats array
     UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "Stats")
     TArray<FStatData> Stats;
     
-    
-    // -------------------------
     // Getter: return Value, MaxValue and bIsAlive
-    // -------------------------
     UFUNCTION(BlueprintCallable, Category="Stat System | Getter")
-    void GetStatValues(FGameplayTag Tag, float& OutValue, float& OutMaxValue) const;
+    float GetStatValue(FGameplayTag Tag, EStatValueType Type) const;
     
+    UFUNCTION(BlueprintCallable, Category="Stat System | Getter")
+    FText GetStatDetails(FGameplayTag Tag) const;
+
     UFUNCTION(BlueprintPure, Category="Stats")
     bool IsAlive() const { return bIsAlive; }
-    // -------------------------
-    // Modify only the stat's Value
-    // -------------------------
+    
+    //Setts and Modifiers    
     UFUNCTION(BlueprintCallable, Category="Stats")
-    void ModifyStatValue(FGameplayTag Tag, float DeltaValue, AActor* SourceModifier = nullptr);
-
-    // -------------------------
-    // Modify only the stat's MaxValue
-    // -------------------------
-    UFUNCTION(BlueprintCallable, Category="Stats")
-    void ModifyStatMaxValue(FGameplayTag Tag, float DeltaMaxValue, AActor* SourceModifier = nullptr);
+    bool TakeDamage(AActor* DamageDealer, FVector ImpactPoint, float DamageAmount, bool& bOutKilled, float& OutDamageTaken);
+    
+    UFUNCTION(BlueprintCallable, Category="Stat System | Modifier")
+    void ModifyStat(AActor* SourceModifier, FGameplayTag Tag, EStatValueType Type, float Delta);
+    
+    
+    //Soul Force
+    UFUNCTION(BlueprintCallable, Category="Stat System | Modifier")
+    void GainEssence(float RawEssenceAmount);
     
     UFUNCTION()
-    void Recovery();
+    float GetEssenceGainScalar() const;
+
+    UFUNCTION(BlueprintCallable, Category="Stat System | Modifier")
+    void SoulForceDeathPenalty();
     
-    // Toggle Rest mode (Blueprint callable)
-    UFUNCTION(BlueprintCallable, Category="Stats")
-    void SetResting(bool bRest);
-    
-    UFUNCTION(BlueprintCallable, Category="Stats")
-    bool TakeDamage(AActor* DamageDealer, FVector ImpactPoint, float DamageAmount);
-    
-    UFUNCTION(BlueprintPure, Category="Stats")
-    float GetStatCurrentValue(FGameplayTag Stat) const;
-    
-    UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Stats")
-    TArray<UAnimMontage*> HitReactions;
-    
-    UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Stats")
-    USoundBase* HurtSound = nullptr;
-    
-    UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Stats")
-    UNiagaraSystem* HurtEffect = nullptr;
-    
-    // -------------------------
+    UFUNCTION()
+    float GetEssenceLossPercent() const;
+
+
     // Delegates
-    // -------------------------
     UPROPERTY(BlueprintAssignable, Category="Stats")
     FOnStatChanged OnStatChanged;
+    
+    UPROPERTY(BlueprintAssignable, Category="Stats")
+    FOnSoulForceChanged OnSoulForceChanged;
 
     UPROPERTY(BlueprintAssignable, Category="Stats")
     FOnDeath OnDeath;
     
-    bool bIsAlive = true;
+   
     protected:
     
     UPROPERTY(BlueprintReadOnly)
@@ -150,5 +103,12 @@ public:
     UPROPERTY(VisibleAnywhere, BlueprintReadWrite, Category="Stats")
     bool IsDamageImmune = false;
     
+    UPROPERTY(VisibleAnywhere, BlueprintReadWrite, Category="Stats")
+    bool bIsAlive = true;
+    
+private:
+    
+    void ScaleStats(float EssenceDelta);
+    static float GetLevelValueSafe(const TArray<float>& Array, int32 Level, float DefaultValue = 1.0f);
     
 };

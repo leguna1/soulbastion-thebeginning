@@ -62,6 +62,7 @@ void UAbilitySystem::SetupEventBindings()
 		AnimInstance->OnMontageEnded.AddDynamic(this, &UAbilitySystem::OnMontageEndHandler);
 		AnimInstance->OnPlayMontageNotifyBegin.AddDynamic(this, &UAbilitySystem::HandleNotifyBegin);
 	}
+	
 }
 void UAbilitySystem::SetupMotionWarping()
 {
@@ -95,6 +96,9 @@ void UAbilitySystem::SetupSkills()
 			this->OnActiveSkillStateChanged.AddDynamic(NewSkill, &USkillBase::OnSkillStateChanged);
 			this->OnMontageEvent.AddDynamic(NewSkill, &USkillBase::OnAnimMontageEvent);
 			this->OnActivationInput.AddDynamic(NewSkill, &USkillBase::OnActivation);
+			StatSystemRef->OnDeath.AddDynamic(NewSkill, &USkillBase::OnOwnerDeath);
+			StatSystemRef->OnStatChanged.AddDynamic(NewSkill, &USkillBase::OnOwnerStatChanged);
+			
 			SkillInstances.Add(NewSkill);
 			NewSkill->SkillData.CurrentCharge = NewSkill->SkillData.MaxCharge;
 			
@@ -103,11 +107,11 @@ void UAbilitySystem::SetupSkills()
 }
 
 //Main Functions
-void UAbilitySystem::TryActivateAbility(FGameplayTag SkillTag, EActivationInput Input, float InElapsedTime)
+void UAbilitySystem::TryActivateAbility(FGameplayTag SkillTag, EActivationInput Input,float InElapsedTime)
 {
-	
+	// 1. Find requested skill
 	USkillBase* RequestedSkill = nullptr;
-	
+
 	for (USkillBase* Skill : SkillInstances)
 	{
 		if (Skill && Skill->SkillTag == SkillTag)
@@ -116,33 +120,42 @@ void UAbilitySystem::TryActivateAbility(FGameplayTag SkillTag, EActivationInput 
 			break;
 		}
 	}
-	//Cache Activation conditions to prevent duplication
-	const bool bCanActivateRequested = RequestedSkill->CanActivate_Implementation(SkillTag);
-	
-	if (!RequestedSkill || !bCanActivateRequested)
+
+	if (!RequestedSkill)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("[Ability] Skill %s does not exist"), *SkillTag.ToString());
+		return;
+	}
+
+	// 2. Can requested skill activate?
+	const bool bCanActivateRequested =
+		RequestedSkill->CanActivate_Implementation(SkillTag);
+
+	if (!bCanActivateRequested)
 	{
 		return;
 	}
-	
-	if (!IsValid(ActiveSkill) && bCanActivateRequested)
+
+	// 3. NO active skill → just activate
+	if (!IsValid(ActiveSkill))
 	{
 		OnActivationInput.Broadcast(SkillTag, Input, InElapsedTime);
 		return;
 	}
-	
-	//Cache Activation info to prevent duplications
+
+	// ---- FROM HERE ON: ActiveSkill IS GUARANTEED VALID ----
+
+	// Cache active skill data
 	const int32 ActivePriority = ActiveSkill->Priority;
 	const bool bActiveCanBeInterrupted = ActiveSkill->bCanBeInterrupted;
 	const bool bActiveCanSelfInterrupt = ActiveSkill->bCanInterruptSelf;
 	const FGameplayTag ActiveTag = ActiveSkill->SkillTag;
-	
-	
-	
-	//Higher Priority
-	if (bCanActivateRequested &&
-		RequestedSkill->Priority > ActivePriority)
+
+	// 4. Higher priority interrupts
+	if (RequestedSkill->Priority > ActivePriority)
 	{
-		UE_LOG(LogTemp, Warning, TEXT("[Ability] %s INTERRUPTS %s (Priority %d > %d)"),
+		UE_LOG(LogTemp, Warning,
+			TEXT("[Ability] %s INTERRUPTS %s (Priority %d > %d)"),
 			*SkillTag.ToString(), *ActiveTag.ToString(),
 			RequestedSkill->Priority, ActivePriority);
 
@@ -154,43 +167,35 @@ void UAbilitySystem::TryActivateAbility(FGameplayTag SkillTag, EActivationInput 
 		OnActivationInput.Broadcast(SkillTag, Input, InElapsedTime);
 		return;
 	}
-	
-	//Equal Priority or Self-Interrupt
-	bool bShouldBuffer = false;
 
+	// 5. Equal priority or self-interrupt → buffer
 	const bool bEqualPriority =
 		RequestedSkill->Priority == ActivePriority &&
-		bActiveCanBeInterrupted &&
-		bCanActivateRequested;
+		bActiveCanBeInterrupted;
 
 	const bool bSelfInterrupt =
 		ActiveSkill == RequestedSkill &&
-		bActiveCanSelfInterrupt &&
-		bCanActivateRequested;
+		bActiveCanSelfInterrupt;
 
-	bShouldBuffer = bEqualPriority || bSelfInterrupt;
+	const bool bShouldBuffer = bEqualPriority || bSelfInterrupt;
 
-	//Buffer or Block
-	
-	if (bShouldBuffer)
+	if (bShouldBuffer && bBufferWindowOpen)
 	{
-		if (bBufferWindowOpen)
-		{
-			BufferedInputs.Add({ SkillTag, Input, InElapsedTime });
-			DEBUG_LOG("Buffered input: %s, input=%d", *SkillTag.ToString(), (int)Input);
-		}
+		BufferedInputs.Add({ SkillTag, Input, InElapsedTime });
+		DEBUG_LOG("Buffered input: %s, input=%d",
+			*SkillTag.ToString(), (int)Input);
 	}
-	else
+	else if (!bShouldBuffer)
 	{
-		UE_LOG(LogTemp, Log, TEXT("[Ability] %s blocked by %s (higher priority skill)"),
+		UE_LOG(LogTemp, Log,
+			TEXT("[Ability] %s blocked by %s (higher priority skill)"),
 			*SkillTag.ToString(), *ActiveTag.ToString());
 	}
-	
 }
 
-void UAbilitySystem::PlayAbilityMontage(UAnimMontage* Montage, const FAbilityMontageParams& Params, float SpeedMultiplier, bool bUseMotionWarp)
+void UAbilitySystem::PlayAbilityMontage(const FAbilityMontageParams& Params, const bool bUseMotionWarp)
 {
-	if (!OwnerCharacter || !Montage)
+	if (!OwnerCharacter || !Params.MontageToPlay)
 	{
 		FAnimMontageData Data;
 		Data.State = EAnimMontageState::Interrupted;
@@ -218,13 +223,13 @@ void UAbilitySystem::PlayAbilityMontage(UAnimMontage* Montage, const FAbilityMon
 	// Play the montage with initial rate
 	float NormalizedTime = 0.f;
 	float CurveRate = Params.PlayRateCurve ? Params.PlayRateCurve->GetFloatValue(NormalizedTime) : 1.f;
-	float FinalRate = Params.PlayRate * CurveRate * (1 + SpeedMultiplier);
+	float FinalRate = Params.PlayRate * CurveRate * (1 + Params.PlayRateMultiplayer);
 	
-	AnimInstance->Montage_Play(Montage, FinalRate);
+	AnimInstance->Montage_Play(Params.MontageToPlay, FinalRate);
 
 	if (Params.StartSection != NAME_None)
 	{
-		AnimInstance->Montage_JumpToSection(Params.StartSection, Montage);
+		AnimInstance->Montage_JumpToSection(Params.StartSection, Params.MontageToPlay);
 	}
 
 	// Broadcast Started event
@@ -235,12 +240,12 @@ void UAbilitySystem::PlayAbilityMontage(UAnimMontage* Montage, const FAbilityMon
 
 	// Start timer to simulate Tick at ~60 FPS
 	FTimerDelegate TimerDel;
-	TimerDel.BindUObject(this, &UAbilitySystem::UpdateMontageTick, Montage, Params, SpeedMultiplier);
+	TimerDel.BindUObject(this, &UAbilitySystem::UpdateMontageTick, Params.MontageToPlay, Params, Params.PlayRateMultiplayer);
 	GetWorld()->GetTimerManager().SetTimer(MontageUpdateTimerHandle, TimerDel, 0.0167, true);
 }
 
 //Sub-Functions
-void UAbilitySystem::SetActiveSkillState(ESkillState NewState)
+void UAbilitySystem::SetActiveSkillState(ESkillState NewState, float StateDuration)
 {
 	if (!ActiveSkill)
 	{
@@ -249,7 +254,7 @@ void UAbilitySystem::SetActiveSkillState(ESkillState NewState)
 	}
 
 	ActiveSkill->SkillState = NewState;
-	OnActiveSkillStateChanged.Broadcast(ActiveSkill->SkillTag, NewState);
+	OnActiveSkillStateChanged.Broadcast(ActiveSkill->SkillTag, NewState, StateDuration);
 }
 FSkillData UAbilitySystem::GetSkillData(FGameplayTag SkillTag) const
 {
@@ -293,9 +298,7 @@ void UAbilitySystem::ApplyMotionWarp(bool bUseWarp, const FAbilityMontageParams&
                 float Distance = FVector::Dist(InstLoc, TargetLoc);
                 float Delta = Distance - Params.IdealRange;
 
-                float Clamped = FMath::Clamp(Delta,
-                                             -Params.MaxWarpDistance,
-                                              Params.MaxWarpDistance);
+                float Clamped = FMath::Clamp(Delta, -Params.MaxWarpDistance, Params.MaxWarpDistance);
 
                 WarpLoc = InstLoc + Dir * Clamped;
             }
@@ -429,7 +432,7 @@ void UAbilitySystem::OnMontageStartHandler(UAnimMontage* Montage)
 	if (!Montage) return;
 
 	// If there is an active skill already, it becomes the old skill
-	if (ActiveSkill && ActiveSkill->MontageToPlay != Montage)
+	if (ActiveSkill && ActiveSkill->MontageSettings.MontageToPlay != Montage)
 	{
 		OldActiveSkill = ActiveSkill;
 	}
@@ -437,7 +440,7 @@ void UAbilitySystem::OnMontageStartHandler(UAnimMontage* Montage)
 	// Find the skill instance that matches this montage
 	for (USkillBase* Skill : SkillInstances)
 	{
-		if (!Skill || Skill->MontageToPlay != Montage)
+		if (!Skill || Skill->MontageSettings.MontageToPlay != Montage)
 			continue;
 
 		// Set new active skill
@@ -447,7 +450,7 @@ void UAbilitySystem::OnMontageStartHandler(UAnimMontage* Montage)
 		Skill->SkillState = ESkillState::Windup;
 
 		// Notify listeners
-		OnActiveSkillStateChanged.Broadcast(Skill->SkillTag, Skill->SkillState);
+		OnActiveSkillStateChanged.Broadcast(Skill->SkillTag, Skill->SkillState, 0.f);
 
 		return; // done
 	}
@@ -458,7 +461,7 @@ void UAbilitySystem::OnMontageEndHandler(UAnimMontage* Montage, bool bInterrupte
 	if (!Montage) return;
 
 	// First, handle old skill if its montage matches
-	if (OldActiveSkill && OldActiveSkill->MontageToPlay == Montage)
+	if (OldActiveSkill && OldActiveSkill->MontageSettings.MontageToPlay == Montage)
 	{
 		// Broadcast Completed or Interrupted
 		FAnimMontageData Data;
@@ -468,13 +471,13 @@ void UAbilitySystem::OnMontageEndHandler(UAnimMontage* Montage, bool bInterrupte
 
 		// Reset old skill state
 		OldActiveSkill->SkillState = ESkillState::Ready;
-		OnActiveSkillStateChanged.Broadcast(OldActiveSkill->SkillTag, ESkillState::Ready);
+		OnActiveSkillStateChanged.Broadcast(OldActiveSkill->SkillTag, ESkillState::Ready, 0.f);
 
 		OldActiveSkill = nullptr;
 	}
 
 	// Then, handle active skill if its montage ends
-	if (ActiveSkill && ActiveSkill->MontageToPlay == Montage)
+	if (ActiveSkill && ActiveSkill->MontageSettings.MontageToPlay == Montage)
 	{
 		FAnimMontageData Data;
 		Data.State = bInterrupted ? EAnimMontageState::Interrupted : EAnimMontageState::Completed;
@@ -482,7 +485,7 @@ void UAbilitySystem::OnMontageEndHandler(UAnimMontage* Montage, bool bInterrupte
 		OnMontageEvent.Broadcast(Data);
 
 		ActiveSkill->SkillState = ESkillState::Ready;
-		OnActiveSkillStateChanged.Broadcast(ActiveSkill->SkillTag, ESkillState::Ready);
+		OnActiveSkillStateChanged.Broadcast(ActiveSkill->SkillTag, ESkillState::Ready, 0.f);
 
 		ActiveSkill = nullptr;
 	}

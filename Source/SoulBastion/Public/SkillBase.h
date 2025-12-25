@@ -30,8 +30,6 @@ public:
 	void RequestTick();
 	UFUNCTION(BlueprintCallable, Category = "Ability System")
 	void ReleaseTick();
-
-	
 	
 	UFUNCTION(BlueprintNativeEvent, BlueprintCallable, Category="Skill")
 	bool CanActivate(FGameplayTag Tag);
@@ -41,22 +39,24 @@ public:
 	void BeginRecharge(int32 ChargeToConsume = 1);
 	
 	UFUNCTION(BlueprintNativeEvent, BlueprintCallable, Category="Skill | Event")
-	void OnSkillStateChanged(FGameplayTag EventSkillTag, ESkillState NewState);
+	void OnSkillStateChanged(FGameplayTag EventSkillTag, ESkillState NewState, float NewDuration);
 	
 	UFUNCTION(BlueprintNativeEvent, BlueprintCallable, Category="Skill | Event")
 	void OnAnimMontageEvent(FAnimMontageData EventData);
-
-	UFUNCTION(BlueprintImplementableEvent)
-	void OnSkillTick(float DeltaTime);
+	
 
 	UFUNCTION(BlueprintCallable, Category= "Skill | Timing")
 	void Recharge(float DeltaTime);
 	
-	UFUNCTION(BlueprintNativeEvent, BlueprintCallable, Category= "Skill | Event")
-	void OnSkillConstruct();
 	
 	UFUNCTION(BlueprintNativeEvent, BlueprintCallable, Category= "Skill | Event")
 	void OnActivation(FGameplayTag Tag, EActivationInput Input, float ElapsedTime);
+	
+	UFUNCTION(BlueprintNativeEvent, BlueprintCallable, Category= "Skill | Event")
+	void OnOwnerDeath(FOnDeathEvent Payload);
+	
+	UFUNCTION(BlueprintNativeEvent, BlueprintCallable, Category= "Skill | Event")
+	void OnOwnerStatChanged(FStatChangedEvent Payload);
 
 	//Getter Functions
 
@@ -65,14 +65,15 @@ public:
 
 	UFUNCTION(BlueprintPure, Category = "Ability System")
 	ACharacter* GetOwningCharacter() const { return OwningCharacterRef; }
+	
+	UFUNCTION(BlueprintPure, Category = "Ability System")
+	UStatSystem* GetOwnerStats() const {return AbilitySystemRef->GetOwnerStats(); }
 
 	UFUNCTION(BlueprintPure)
 	ESkillState GetSkillState() const {return SkillState;}
 	
 	UFUNCTION(BlueprintPure)
 	UAnimInstance* GetOwnerAnimInst() const {return OwningCharacterRef->GetMesh()->GetAnimInstance(); }
-	
-	
 	
 	//Variables
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly)
@@ -87,19 +88,16 @@ public:
 	UPROPERTY(EditDefaultsOnly, Category = "Skill|Priority")
 	bool bCanInterruptSelf = false; // e.g. chain attacks
 	
-	UPROPERTY(EditAnywhere, BlueprintReadWrite)
-	UAnimMontage* MontageToPlay;
-	
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Skill Setting")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Skill | Data")
 	FSkillData SkillData;
 	
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Skill Setting")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Skill | Montage")
 	FAbilityMontageParams MontageSettings;
 	
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Skill Setting")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Skill | FX")
 	FFxData VisualEffectsSetting;
 	
-	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "Skill Setting")
+	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "Skill | FX")
 	FCameraShakeData CameraShakeSetting;
 	
 	

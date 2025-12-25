@@ -15,7 +15,7 @@ class UCameraShakeBase;
 
 
 
-DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnSkillStateChanged, FGameplayTag, SkillTag, ESkillState, NewState);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_ThreeParams(FOnSkillStateChanged, FGameplayTag, SkillTag, ESkillState, NewState, float, StateDuration);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_ThreeParams(FOnActivationInput, FGameplayTag, SkillTag, EActivationInput, Input, float, ElapsedTime);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FMontageEventSignature, FAnimMontageData, EventData);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_FourParams(FOnSkillChargeTime, FGameplayTag, SkillTag, int32, ChargeCount, float, MaxTime, float, TimeRemaining);
@@ -88,7 +88,7 @@ public:
  
 
     UFUNCTION(BlueprintCallable, Category="Skills")
-    void SetActiveSkillState(ESkillState NewState);
+    void SetActiveSkillState(ESkillState NewState, float StateDuration);
     
     UFUNCTION(BlueprintPure, Category="Skills")
     FSkillData GetSkillData(FGameplayTag SkillTag) const;
@@ -128,8 +128,7 @@ protected:
     
     //Anim Montage Player
     UFUNCTION(BlueprintCallable)
-    void PlayAbilityMontage(UAnimMontage* Montage, const FAbilityMontageParams& Params, float SpeedMultiplier,
-                            bool bUseMotionWarp);
+    void PlayAbilityMontage(const FAbilityMontageParams& Params, bool bUseMotionWarp);
     
     UFUNCTION(BlueprintCallable)
     void ApplyMotionWarp(bool bUseWarp, const FAbilityMontageParams& MontageParams);

@@ -36,7 +36,7 @@ void USkillStateNotify::Notify(USkeletalMeshComponent* MeshComp, UAnimSequenceBa
 	// MATCHES THE SKILL?
 	if (CurrentlyActiveTag == SkillTag)
 	{
-		AbilitySystem->SetActiveSkillState(NewState);
+		AbilitySystem->SetActiveSkillState(NewState, StateDuration);
 
 		UE_LOG(LogTemp, Log, TEXT("SkillStateNotify: Setting %s to %s"),
 			*SkillTag.ToString(),

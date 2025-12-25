@@ -1,6 +1,7 @@
 #include "StatSystem.h"
 #include "NiagaraFunctionLibrary.h"
 #include "NiagaraComponent.h"
+#include "DSP/MidiNoteQuantizer.h"
 #include "Kismet/GameplayStatics.h"
 
 
@@ -14,244 +15,240 @@ void UStatSystem::BeginPlay()
 {
     Super::BeginPlay();
     
-    // Bind to stat changed event
-    OnStatChanged.AddDynamic(this, &UStatSystem::HandleStatChanged);
-
-    // Start passive regen
-    GetWorld()->GetTimerManager().SetTimer(
-        RecoveryTimerHandle,
-        this,
-        &UStatSystem::Recovery,
-        1.0f,    // every 1 second
-        true
-    );
-}
-
-void UStatSystem::HandleStatChanged(FStatChangedEvent StatEvent)
-{
-    // Only react if value decreased
-    if (StatEvent.ChangeValue < 0.f)
+    AbilitySystem = GetOwner()->FindComponentByClass<UAbilitySystem>();
+    UtilityBox = GetOwner()->FindComponentByClass<UUtilityBox>();
+    
+    // Initialize Old Values for all stats
+    for (FStatData& Stat : Stats)
     {
-        EnterCombat();
+        Stat.BaseValue += Stat.BonusValue;
+        
+        Stat.BaseValue = FMath::Clamp(Stat.BaseValue, 0.f, Stat.BaseMaxValue); 
+        
+        Stat.BaseMaxValue += Stat.BonusMaxValue;
     }
+    
 }
 
-void UStatSystem::GetStatValues(FGameplayTag Tag, float& OutValue, float& OutMaxValue) const
+float UStatSystem::GetStatValue(const FGameplayTag Tag, const EStatValueType Type) const
 {
     for (const FStatData& Stat : Stats)
     {
         if (Stat.StatTag == Tag)
         {
-            OutValue = Stat.Value;
-            OutMaxValue = Stat.MaxValue;
-            return;
-        }
-    }
-
-    OutValue = 0.f;
-    OutMaxValue = 0.f;
-}
-
-// -------------------------
-// Modify only Value
-// -------------------------
-void UStatSystem::ModifyStatValue(FGameplayTag Tag, float DeltaValue, AActor* SourceModifier)
-{
-    for (FStatData& Stat : Stats)
-    {
-        if (Stat.StatTag == Tag)
-        {
-            if (FMath::IsNearlyZero(DeltaValue)) return;
-
-            Stat.OldValue = Stat.Value;
-            Stat.Value = FMath::Clamp(Stat.Value + DeltaValue, 0.f, Stat.MaxValue);
-
-            // Prepare stat changed event
-            FStatChangedEvent Event;
-            Event.StatTag = Tag;
-            Event.ChangeValue = Stat.Value - Stat.OldValue;
-            Event.SourceModifier = SourceModifier;
-
-            OnStatChanged.Broadcast(Event);
-
-            // Check for death if health reaches 0
-            if (Tag == FGameplayTag::RequestGameplayTag("Stat.Health") && Stat.Value <= 0.f && bIsAlive)
+            switch (Type)
             {
-                bIsAlive = false;
-
-                FOnDeathEvent DeathEvent;
-                DeathEvent.Killer = SourceModifier;
-                DeathEvent.Damage = Event.ChangeValue;
-
-                OnDeath.Broadcast(DeathEvent);
-            }
-
-            if (Tag == FGameplayTag::RequestGameplayTag("Stat.Health") && Stat.Value > 0.f && !bIsAlive)
-            {
-                bIsAlive = true;
-            }
-            return;
-        }
-    }
-}
-
-// -------------------------
-// Modify only MaxValue
-// -------------------------
-void UStatSystem::ModifyStatMaxValue(FGameplayTag Tag, float DeltaMaxValue, AActor* SourceModifier)
-{
-    for (FStatData& Stat : Stats)
-    {
-        if (Stat.StatTag == Tag)
-        {
-            if (FMath::IsNearlyZero(DeltaMaxValue)) return;
-
-            Stat.OldMaxValue = Stat.MaxValue;
-            Stat.MaxValue += DeltaMaxValue;
-
-            // Clamp current Value to new MaxValue
-            Stat.Value = FMath::Clamp(Stat.Value, 0.f, Stat.MaxValue);
-
-            // Prepare event
-            FStatChangedEvent Event;
-            Event.StatTag = Tag;
-            Event.ChangeValue = DeltaMaxValue;
-            Event.SourceModifier = SourceModifier;
-
-            OnStatChanged.Broadcast(Event);
             
-            return;
-        }
-    }
-}
-void UStatSystem::EnterCombat()
-{
-    if (!bInCombat)
-    {
-        bInCombat = true;
-    }
-
-    // Reset combat timeout every time damage/energy loss happens
-    GetWorld()->GetTimerManager().ClearTimer(CombatTimeoutHandle);
-
-    GetWorld()->GetTimerManager().SetTimer(
-        CombatTimeoutHandle,
-        this,
-        &UStatSystem::LeaveCombat,
-        6.0f,
-        false
-    );
-}
-
-void UStatSystem::LeaveCombat()
-{
-    bInCombat = false;
-
-    // Cannot stay resting in combat but once out of combat resting allowed
-    // (Resting mode is manually controlled)
-}
-
-float UStatSystem::ComputeRecoveryMultiplier() const
-{
-    float RecoveryValue, RecoveryMax;
-    GetStatValues(FGameplayTag::RequestGameplayTag("Stat.Recovery"), RecoveryValue, RecoveryMax);
-
-    // Diminishing returns curve
-    float Diminished = RecoveryValue / (RecoveryValue + 100);
-
-    float ModeMultiplier = 0.f;
-
-    if (bInCombat)
-        ModeMultiplier = 1.0f;
-    else if (bIsResting)
-        ModeMultiplier = 10.0f;
-    else
-        ModeMultiplier = 3.0f;
-
-    return Diminished * ModeMultiplier;
-}
-
-
-void UStatSystem::Recovery()
-{
-    if (!IsAlive())
-        return;
-
-    // Regen amounts per second
-    constexpr float BaseHealthPer5s = 3.f;
-    constexpr float HealthPerSecond = BaseHealthPer5s / 5.f; // 0.6
-
-    float Health, MaxHealth;
-    float Energy, MaxEnergy;
-
-    GetStatValues(FGameplayTag::RequestGameplayTag("Stat.Health"), Health, MaxHealth);
-    GetStatValues(FGameplayTag::RequestGameplayTag("Stat.Energy"), Energy, MaxEnergy);
-
-    float RecoveryMult = ComputeRecoveryMultiplier();
-
-    // Health Regen
-    if (Health < MaxHealth)
-    {
-        float RegenAmount = HealthPerSecond * (1.f + RecoveryMult);
-        ModifyStatValue(FGameplayTag::RequestGameplayTag("Stat.Health"), RegenAmount, nullptr);
-    }
-
-    // Energy Regen
-    if (Energy < MaxEnergy)
-    {
-        constexpr float EnergyPerSecond = 1.f;
-        float RegenAmount = EnergyPerSecond * (1.f + RecoveryMult);
-        ModifyStatValue(FGameplayTag::RequestGameplayTag("Stat.Energy"), RegenAmount, nullptr);
-    }
-  
-}
-
-void UStatSystem::SetResting(bool bRest)
-{
-    // Cannot rest in combat
-    if (bInCombat)
-    {
-        bIsResting = false;
-        return;
-    }
-    bIsResting = bRest;
-}
-bool UStatSystem::TakeDamage(AActor* DamageDealer, FVector ImpactPoint, float DamageAmount)
-{
-    if (IsDamageImmune || DamageAmount <= 0.f) { return false; }
-
-    const FGameplayTag HealthTag = FGameplayTag::RequestGameplayTag("Stat.Health");
-    const FGameplayTag ArmorTag  = FGameplayTag::RequestGameplayTag("Stat.Armor");
-
-    if (GetStatCurrentValue(HealthTag) <= 0.f) { return false; }
-
-    float DamageAfterArmor = FMath::Max(0.f, DamageAmount - GetStatCurrentValue(ArmorTag));
-
-    // Clean. Simple. Perfect.
-    ModifyStatValue(HealthTag, -DamageAfterArmor, DamageDealer);
-
-    // Optional: broadcast hit info for VFX
-    FStatChangedEvent Event;
-    Event.StatTag = HealthTag;
-    Event.ChangeValue = -DamageAfterArmor;
-    Event.SourceModifier = DamageDealer;
-    OnStatChanged.Broadcast(Event);
-    
-    return true;
-    
-}
-float UStatSystem::GetStatCurrentValue(FGameplayTag Stat) const
-{
-    for (const FStatData& Data : Stats)
-    {
-        if (Data.StatTag == Stat)
-        {
-            float Value, MaxValue;
-            GetStatValues(Stat, Value, MaxValue);
-            return Value;
+            case EStatValueType::Value:
+                return Stat.BaseValue + Stat.BonusValue;
+            
+            case EStatValueType::BaseValue:
+                return Stat.BaseValue;
+                
+            case EStatValueType::BonusValue:
+                return Stat.BonusValue; 
+                
+            case EStatValueType::MaxValue:
+                return Stat.BaseMaxValue + Stat.BonusMaxValue;
+            
+            case EStatValueType::BaseMaxValue:
+                return Stat.BaseMaxValue;
+                
+            case EStatValueType::BonusMaxValue:
+                return Stat.BonusMaxValue;
+                
+            default: 
+                return 0.f;
+            }
         }
     }
     return 0.f;
 }
 
+FText UStatSystem::GetStatDetails(const FGameplayTag Tag) const
+{
+    for (const FStatData& Stat : Stats)
+    {
+        if (Stat.StatTag == Tag)
+        {
+            return Stat.Description;
+        }
+    }
+    return FText::GetEmpty();
+}
+
+void UStatSystem::GainEssence(float RawEssenceAmount)
+{
+    if (RawEssenceAmount <= 0.f)
+    {
+        return;
+    }
+    const float EssenceScalar = GetEssenceGainScalar();
+    
+    const float ScaledEssence = RawEssenceAmount * EssenceScalar;
+    
+    SoulForceData.GainedSoulEssences += ScaledEssence;
+    
+    ScaleStats(ScaledEssence);
+    
+    OnSoulForceChanged.Broadcast(SoulForceData.GainedSoulEssences);
+}
+float UStatSystem::GetEssenceGainScalar() const
+{
+    if (SoulForceData.EssenceGainScalarCurve)
+    {
+        return SoulForceData.EssenceGainScalarCurve
+            ->GetFloatValue(SoulForceData.SoulForceLevel);
+    }
+
+    return 1.f; 
+}
+void UStatSystem::SoulForceDeathPenalty()
+{
+    if (SoulForceData.GainedSoulEssences <= 0) return;
+    
+    const float LossPercent = GetEssenceLossPercent();
+    
+    if (LossPercent <= 0.f) return;
+    
+    const float EssenceLoss = SoulForceData.GainedSoulEssences * LossPercent;
+    
+    SoulForceData.GainedSoulEssences -= EssenceLoss;
+    
+    AActor* OwnerActor = GetOwner();
+    if (!OwnerActor) return;
+    
+    //Lets undo stat bonuses
+    
+    for (const FSoulForceEffect& Effect : SoulForceData.Effects)
+    {
+        const float StatDelta = EssenceLoss * Effect.StatScalarValue;
+        
+        ModifyStat(OwnerActor, Effect.StatToScale, Effect.StatValueTypeToScale, -StatDelta);
+    }
+    OnSoulForceChanged.Broadcast(SoulForceData.GainedSoulEssences);
+}
+float UStatSystem::GetEssenceLossPercent() const
+{
+    if (SoulForceData.EssenceLossPercentCurve)
+    {
+        return SoulForceData.EssenceLossPercentCurve
+            ->GetFloatValue(SoulForceData.SoulForceLevel);
+    }
+
+    return 0.f; // No penalty if curve missing
+}
+void UStatSystem::ScaleStats(float EssenceDelta)
+{
+    if (EssenceDelta <= 0.f) return;
+    
+    AActor* OwnerActor = GetOwner();
+    if (!OwnerActor)
+    {
+        return;
+    }
+    
+    for (const FSoulForceEffect& Effect : SoulForceData.Effects)
+    {
+        const float StatDelta = EssenceDelta * Effect.StatScalarValue;
+        
+        ModifyStat(OwnerActor, Effect.StatToScale, Effect.StatValueTypeToScale, StatDelta);
+    }
+}
+
+float UStatSystem::GetLevelValueSafe(const TArray<float>& Array, int32 Level, float DefaultValue)
+{
+   if (Array.Num() == 0) return DefaultValue;
+    
+    const int32 Index = FMath::Clamp(Level, 0, Array.Num() - 1);
+    return Array[Index];
+}
+
+void UStatSystem::ModifyStat(AActor* SourceModifier, const FGameplayTag Tag, const EStatValueType Type, const float Delta)
+{
+    for (FStatData& Stat : Stats)
+    {
+        if (Stat.StatTag != Tag)
+            continue;
+
+        // ---------- APPLY DELTA ----------
+        switch (Type)
+        {
+        case EStatValueType::BaseValue:    Stat.BaseValue  += Delta; break;
+        case EStatValueType::BonusValue:   Stat.BonusValue += Delta; break;
+        case EStatValueType::BaseMaxValue: Stat.BaseMaxValue  += Delta; break;
+        case EStatValueType::BonusMaxValue:Stat.BonusMaxValue += Delta; break;
+        default: return;
+        }
+
+        // ---------- CLAMP MAX VALUES ----------
+        Stat.BaseMaxValue  = FMath::Max(1.f, Stat.BaseMaxValue);
+        Stat.BonusMaxValue = FMath::Max(0.f, Stat.BonusMaxValue);
+
+        const float CurrentMaxValue = Stat.BaseMaxValue + Stat.BonusMaxValue;
+
+        // ---------- CLAMP BASE / BONUS VALUES ----------
+        Stat.BaseValue  = FMath::Clamp(Stat.BaseValue, 0.f, CurrentMaxValue);
+        Stat.BonusValue = FMath::Clamp(Stat.BonusValue, 0.f, CurrentMaxValue - Stat.BaseValue);
+
+        // ---------- FINAL DERIVED VALUES ----------
+        Stat.CurrentMaxValue = CurrentMaxValue;
+        Stat.CurrentValue    = Stat.BaseValue + Stat.BonusValue;
+
+        // ---------- BROADCAST ----------
+        FStatChangedEvent Event;
+        Event.StatTag = Tag;
+        Event.ChangeSource = SourceModifier;
+        OnStatChanged.Broadcast(Event);
+
+        // ---------- GAMEPLAY CONSEQUENCES (DEATH/REVIVAL) ----------
+        if (Tag == FGameplayTag::RequestGameplayTag("Stat.Health"))
+        {
+            if (!bIsAlive && Stat.CurrentValue > 0.f)
+            {
+                bIsAlive = true;
+                // Trigger OnRevived event here if needed
+            }
+            else if (bIsAlive && Stat.CurrentValue <= 0.f)
+            {
+                bIsAlive = false;
+                // Trigger OnDeath event here if needed
+            }
+        }
+
+        // Finished processing this stat
+        return;
+    }
+}
+
+bool UStatSystem::TakeDamage(AActor* DamageDealer, FVector ImpactPoint, float DamageAmount, bool& bOutKilled, float& OutDamageTaken)
+{
+    bOutKilled = false;
+    
+    if (IsDamageImmune || DamageAmount <= 0.f || !bIsAlive) { return false; }
+
+    const FGameplayTag HealthTag = FGameplayTag::RequestGameplayTag("Stat.Health");
+    const FGameplayTag ArmorTag  = FGameplayTag::RequestGameplayTag("Stat.Armor");
+
+    float DamageAfterArmor = FMath::Max(0.f, DamageAmount - GetStatValue(ArmorTag, EStatValueType::Value));
+
+    // Clean. Simple. Perfect.
+    ModifyStat(DamageDealer, HealthTag, EStatValueType::BaseValue, -DamageAfterArmor);
+    
+    // Check for death if health reaches 0
+    if (GetStatValue(HealthTag, EStatValueType::Value) <= 0.f)
+    {
+        bIsAlive = false;
+
+        FOnDeathEvent DeathEvent;
+        DeathEvent.Killer = DamageDealer;
+        DeathEvent.Damage = DamageAfterArmor;
+        
+        OnDeath.Broadcast(DeathEvent);
+        
+        bOutKilled = true;
+    }
+    OutDamageTaken = DamageAfterArmor;
+    return true;
+}
 

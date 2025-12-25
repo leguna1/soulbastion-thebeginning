@@ -13,9 +13,7 @@ void USkillBase::Tick(float DeltaTime)
 
 	// Recharge logic
 	Recharge(DeltaTime);
-
-	// Forward to blueprint (for other tick-driven effects like particle updates etc.)
-	OnSkillTick(DeltaTime);
+	
 }
 TStatId USkillBase::GetStatId() const
 {
@@ -41,11 +39,9 @@ void USkillBase::ReleaseTick()
 }
 bool USkillBase::CanActivate_Implementation(FGameplayTag Tag)
 {
+	float CurrentEnergy = GetOwningAbility() -> GetOwnerStats() -> GetStatValue(FGameplayTag::RequestGameplayTag("Stat.Energy"), EStatValueType::Value);
 	
-	bool IsAlive = GetOwningAbility() -> GetOwnerStats() -> IsAlive();
-	float CurrentEnergy = GetOwningAbility() -> GetOwnerStats() -> GetStatCurrentValue(FGameplayTag::RequestGameplayTag("Stat.Energy"));
-	
-	if (SkillData.MaxCharge > 0 && SkillData.CurrentCharge > 0 && IsAlive && CurrentEnergy >= SkillData.EnergyCost)
+	if (Tag == SkillTag && SkillData.MaxCharge > 0 && SkillData.CurrentCharge > 0 && CurrentEnergy >= SkillData.EnergyCost)
 	{
 		DEBUG_LOG("CanActivate: All check points passed, can activate skill %s", *SkillTag.ToString());
 		return true;
@@ -64,7 +60,7 @@ void USkillBase::BeginRecharge(int32 ChargeToConsume)
 	// Start tick
 	RequestTick();
 
-	// Multi-charge: only start timer if it wasn’t already running
+	// Multi-charge: only start timer if it is not already running
 	if (SkillData.MaxCharge > 1)
 	{
 		if (CurrentRechargeTime <= 0.f)
@@ -121,16 +117,20 @@ void USkillBase::Recharge(float DeltaTime)
 		AbilitySystemRef->OnChargeTimeUpdated.Broadcast(SkillTag, SkillData.CurrentCharge, SkillData.RechargeTime, CurrentRechargeTime);
 }
 
-void USkillBase::OnSkillConstruct_Implementation()
+void USkillBase::OnOwnerStatChanged_Implementation(FStatChangedEvent Payload)
 {
-	//Skill begin play.
+	//Handled in blueprint by children
+}
+void USkillBase::OnOwnerDeath_Implementation(FOnDeathEvent Payload)
+{
+	//Handled in blueprint by children.
 }
 
 void USkillBase::OnActivation_Implementation(FGameplayTag Tag, EActivationInput Input, float ElapsedTime)
 {
 	//Handled in blueprint by children.
 }
-void USkillBase::OnSkillStateChanged_Implementation(FGameplayTag EventSkillTag, ESkillState NewState)
+void USkillBase::OnSkillStateChanged_Implementation(FGameplayTag EventSkillTag, ESkillState NewState, float NewDuration)
 {
 	//Handled in blueprint by children.
 }

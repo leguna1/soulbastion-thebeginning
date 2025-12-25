@@ -48,6 +48,20 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
 	TArray<FMontageEntry> MontageData;   // MUST have 12 elements
 	
+	UFUNCTION(BlueprintCallable, Category="UtilityBox|Collision")
+	static void SetIgnoreOtherCharacters(ACharacter* Character, ECollisionChannel Channel, bool bIgnore);
+	
+	UFUNCTION(BlueprintCallable, Category="UtilityBox|Verifier")
+	bool HasPC() const;
+	
+	UFUNCTION(BlueprintCallable, Category="UtilityBox|Math")
+	int32 GetDirectionalIndex(const AActor* Target) const;
+	
+	UFUNCTION(BlueprintCallable, Category="UtilityBox|Math")
+	int32 GetComboMontageIndex(const AActor* TargetActor, int32 ComboCount, int32 LastIndex) const;
+	
+	
+
 protected:
 	// Called when the game starts
 	virtual void BeginPlay() override;
@@ -55,6 +69,7 @@ protected:
 public:	
 	// Called every frame
 	virtual void TickComponent(float DeltaTime, ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction) override;
-
-		
+	
+	
+	
 };

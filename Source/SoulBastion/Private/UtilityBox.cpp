@@ -5,6 +5,8 @@
 #include "Kismet/GameplayStatics.h"
 #include "NiagaraFunctionLibrary.h"
 #include "NiagaraSystem.h"
+#include "Components/CapsuleComponent.h"
+#include "GameFramework/Character.h"
 
 
 // Sets default values for this component's properties
@@ -16,7 +18,7 @@ UUtilityBox::UUtilityBox()
 	
 }
 
-void UUtilityBox::SpawnHitEffects(FVector ImpactPoint, FVector SurfaceNormal, FFxData FxData)
+void UUtilityBox::SpawnHitEffects(FVector ImpactPoint, FVector SurfaceNormal, FFxData FxData) //Keep
 {
 	UWorld* World = GetWorld();
 	if (!World) return;
@@ -40,7 +42,7 @@ void UUtilityBox::SpawnHitEffects(FVector ImpactPoint, FVector SurfaceNormal, FF
 	}
 }
 
-void UUtilityBox::PlayMyCameraShake(const FCameraShakeData& CameraShakeSetting)
+void UUtilityBox::PlayMyCameraShake(const FCameraShakeData& CameraShakeSetting) //Keep
 {
 	if (!CameraShakeSetting.ShakeClass) return;
 
@@ -62,7 +64,7 @@ void UUtilityBox::PlayMyCameraShake(const FCameraShakeData& CameraShakeSetting)
 	);
 }
 
-int32 UUtilityBox::GetHitReactionIndex(const FVector& ImpactPoint) const
+int32 UUtilityBox::GetHitReactionIndex(const FVector& ImpactPoint) const //Keep
 {
 	const FVector OwnerLocation = GetOwner()->GetActorLocation();
 	const FRotator OwnerRotation = GetOwner()->GetActorRotation();
@@ -292,7 +294,7 @@ int32 UUtilityBox::SelectMontageIndex(const AActor* Instigator, const AActor* Ta
 
 	return BestIndex;
 }
-int32 UUtilityBox::SelectMontageIndex_NoBack(const AActor* Instigator, const AActor* Target, const TArray<FMontageEntry>& Data)
+int32 UUtilityBox::SelectMontageIndex_NoBack(const AActor* Instigator, const AActor* Target, const TArray<FMontageEntry>& Data) //Rethink
 {
 	constexpr int32 ExpectedSize = 9;
     if (Data.Num() != ExpectedSize)
@@ -439,4 +441,72 @@ void UUtilityBox::TickComponent(float DeltaTime, ELevelTick TickType, FActorComp
 
 	// ...
 }
+void UUtilityBox::SetIgnoreOtherCharacters(ACharacter* Character, const ECollisionChannel Channel, const bool bIgnore)
+{
+	if (!Character) return;
+	
+	UCapsuleComponent* Capsule = Character->GetCapsuleComponent();
+	if (!Capsule) return;
+	
+	Capsule->SetCollisionResponseToChannel(Channel, bIgnore ? ECR_Ignore : ECR_Block);
+} //Keep
+bool UUtilityBox::HasPC() const
+{
+	const APawn* PawnObject = Cast<APawn>(GetOwner());
+	if (!PawnObject)
+		return false;
+
+	const AController* Controller = PawnObject->GetController();
+	if (!Controller)
+		return false;
+
+	return Controller->IsA(APlayerController::StaticClass());
+} //Keep
+int32 UUtilityBox::GetDirectionalIndex(const AActor* Target) const
+{
+	const AActor* Owner = GetOwner();
+	
+	if (!Owner || !Target) return 0;
+	
+	const FVector Forward = Owner->GetActorForwardVector();
+	const FVector ToTarget = (Target->GetActorLocation() - Owner->GetActorLocation()).GetSafeNormal();
+	
+	const float Dot = FVector::DotProduct(Forward, ToTarget);
+	const FVector Cross = FVector::CrossProduct(Forward, ToTarget);
+	
+	if (Dot > 0.9) return 0;
+	
+	return (Cross.Z > 0.f) ? 2 : 1; // Left : Right
+}
+
+int32 UUtilityBox::GetComboMontageIndex(const AActor* TargetActor, int32 ComboCount, int32 LastIndex) const
+{
+	// ReSharper disable once CppTooWideScope
+	constexpr int32 FinisherIndex = 3;
+	
+	//Force Finisher
+	if (ComboCount == 3)
+	{
+		return FinisherIndex;
+	}
+	
+	//Opener
+	if (ComboCount == 0)
+	{
+		return GetDirectionalIndex(TargetActor);
+	}
+	
+	//Anti-repetition
+	
+	switch (LastIndex)
+	{
+		case 2: return 1;
+		case 1: return 2;
+		case 0: return (FMath::RandBool() ? 1 : 2);
+		
+		default: return 1;
+	}
+	
+}
+
 

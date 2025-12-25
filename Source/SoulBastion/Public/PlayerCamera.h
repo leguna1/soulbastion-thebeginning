@@ -13,7 +13,7 @@ class SOULBASTION_API UPlayerCamera : public UCameraComponent
 
 public:
     UPlayerCamera();
-    void TickComponent(float DeltaTime, ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction);
+    virtual void TickComponent(float DeltaTime, ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction) override;
 
 protected:
     virtual void BeginPlay() override;
@@ -23,7 +23,7 @@ private:
 
     void UpdateAutoTarget();
     AActor* FindBestTarget() const;
-    bool IsActorAlive(AActor* Actor) const;
+    static bool IsActorAlive(const AActor* Actor);
 
 public:
     // -------------------

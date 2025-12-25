@@ -57,3 +57,14 @@ enum class EMotionWarpRotationMode : uint8
 	None                UMETA(DisplayName="None"),
 	ToTargetActor       UMETA(DisplayName="Rotate To Target Actor")
 };
+UENUM(BlueprintType)
+enum class EStatValueType : uint8
+{
+	None UMETA(DisplayName = "None"),
+	Value UMETA(DisplayName = "Value"),
+	MaxValue UMETA(DisplayName = "Max Value"),
+	BaseValue UMETA(DisplayName = "Base Value"),
+	BaseMaxValue UMETA(DisplayName = "Base Max Value"),
+	BonusValue UMETA(DisplayName = "Bonus Value"),
+	BonusMaxValue UMETA(DisplayName = "Bonus Max Value")
+};

@@ -17,6 +17,9 @@ public:
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Skill")
 	ESkillState NewState = ESkillState::Ready;
+	
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Skill")
+	float StateDuration = 0.f;
 
 	virtual void Notify(USkeletalMeshComponent* MeshComp, UAnimSequenceBase* Animation,
 						const FAnimNotifyEventReference& EventReference) override;

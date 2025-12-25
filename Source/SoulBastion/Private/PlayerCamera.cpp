@@ -82,7 +82,7 @@ AActor* UPlayerCamera::FindBestTarget() const
     return BestTarget;
 }
 
-bool UPlayerCamera::IsActorAlive(AActor* Actor) const
+bool UPlayerCamera::IsActorAlive(const AActor* Actor)
 {
     if (!Actor) return false;
 
