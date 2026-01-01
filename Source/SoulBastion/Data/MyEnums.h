@@ -9,7 +9,9 @@ enum class ESkillState : uint8
 	Ready UMETA(DisplayName = "Ready"),
 	Windup UMETA(DisplayName = "Windup"),
 	Active UMETA(DisplayName = "Active"),
-	Recovery UMETA(DisplayName = "Recovery")
+	Recovery UMETA(DisplayName = "Recovery"),
+	Cancelled UMETA(DisplayName = "Cancelled"),
+	Completed UMETA(DisplayName = "Completed")
 };
 UENUM(BlueprintType)
 enum class  EActivationInput : uint8
@@ -36,10 +38,10 @@ enum class EInterruptibleState : uint8
 	Any UMETA(DisplayName = "Any"),
 	Windup UMETA(DisplayName = "Windup"),
 	Active UMETA(DisplayName = "Active"),
-	Recharge UMETA(DisplayName = "Recharge"),
+	Recovery UMETA(DisplayName = "Recovery"),
 	WindupOrActive UMETA(DisplayName = "Windup Or Active"),
-	WindupOrRecharge UMETA(DisplayName = "Windup Or Recovery"),
-	ActiveOrRecharge UMETA(DisplayName = "Active Or Recharge"),
+	WindupOrRecovery UMETA(DisplayName = "Windup Or Recovery"),
+	ActiveOrRecovery UMETA(DisplayName = "Active Or Recovery"),
 };
 
 UENUM(BlueprintType)
@@ -67,4 +69,14 @@ enum class EStatValueType : uint8
 	BaseMaxValue UMETA(DisplayName = "Base Max Value"),
 	BonusValue UMETA(DisplayName = "Bonus Value"),
 	BonusMaxValue UMETA(DisplayName = "Bonus Max Value")
+};
+UENUM(BlueprintType)
+enum class EMoveMode : uint8
+{
+	None UMETA(DisplayName = "None"),
+	Walk UMETA(DisplayName = "Walking"),
+	Flying UMETA(DisplayName = "Flying"),
+	Swimming UMETA(DisplayName = "Swimming"),
+	Crouching UMETA(DisplayName = "Crouching"),
+	Climbing UMETA(DisplayName = "Climbing"),
 };

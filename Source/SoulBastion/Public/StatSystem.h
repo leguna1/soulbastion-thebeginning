@@ -28,16 +28,6 @@ protected:
     virtual void BeginPlay() override;
     
     UPROPERTY(BlueprintReadOnly, Category="Stats")
-    bool bInCombat = false;
-
-    UPROPERTY(BlueprintReadOnly, Category="Stats")
-    bool bIsResting = false;
-
-    FTimerHandle RecoveryTimerHandle;
-    FTimerHandle CombatTimeoutHandle;
-    
-    
-    UPROPERTY(BlueprintReadOnly, Category="Stats")
     UAbilitySystem* AbilitySystem = nullptr;
     
     UPROPERTY()
@@ -64,7 +54,8 @@ public:
     
     //Setts and Modifiers    
     UFUNCTION(BlueprintCallable, Category="Stats")
-    bool TakeDamage(AActor* DamageDealer, FVector ImpactPoint, float DamageAmount, bool& bOutKilled, float& OutDamageTaken);
+    bool TakeDamage(FHitInfo InHitInfo, float& OutDamageTaken);
+    
     
     UFUNCTION(BlueprintCallable, Category="Stat System | Modifier")
     void ModifyStat(AActor* SourceModifier, FGameplayTag Tag, EStatValueType Type, float Delta);

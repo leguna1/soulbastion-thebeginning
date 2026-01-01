@@ -199,6 +199,7 @@ void UStatSystem::ModifyStat(AActor* SourceModifier, const FGameplayTag Tag, con
         FStatChangedEvent Event;
         Event.StatTag = Tag;
         Event.ChangeSource = SourceModifier;
+        Event.Delta = Delta;
         OnStatChanged.Broadcast(Event);
 
         // ---------- GAMEPLAY CONSEQUENCES (DEATH/REVIVAL) ----------
@@ -213,6 +214,11 @@ void UStatSystem::ModifyStat(AActor* SourceModifier, const FGameplayTag Tag, con
             {
                 bIsAlive = false;
                 // Trigger OnDeath event here if needed
+                FOnDeathEvent DeathEvent;
+                DeathEvent.Killer = SourceModifier;
+                DeathEvent.Damage = Delta;
+        
+                OnDeath.Broadcast(DeathEvent);
             }
         }
 
@@ -221,33 +227,17 @@ void UStatSystem::ModifyStat(AActor* SourceModifier, const FGameplayTag Tag, con
     }
 }
 
-bool UStatSystem::TakeDamage(AActor* DamageDealer, FVector ImpactPoint, float DamageAmount, bool& bOutKilled, float& OutDamageTaken)
+bool UStatSystem::TakeDamage(const FHitInfo InHitInfo, float& OutDamageTaken)
 {
-    bOutKilled = false;
-    
-    if (IsDamageImmune || DamageAmount <= 0.f || !bIsAlive) { return false; }
+    if (IsDamageImmune || InHitInfo.DamageAmount <= 0.f || !bIsAlive) { return false; }
 
     const FGameplayTag HealthTag = FGameplayTag::RequestGameplayTag("Stat.Health");
     const FGameplayTag ArmorTag  = FGameplayTag::RequestGameplayTag("Stat.Armor");
 
-    float DamageAfterArmor = FMath::Max(0.f, DamageAmount - GetStatValue(ArmorTag, EStatValueType::Value));
-
-    // Clean. Simple. Perfect.
-    ModifyStat(DamageDealer, HealthTag, EStatValueType::BaseValue, -DamageAfterArmor);
+    float DamageAfterArmor = FMath::Max(0.f, InHitInfo.DamageAmount - GetStatValue(ArmorTag, EStatValueType::Value));
     
-    // Check for death if health reaches 0
-    if (GetStatValue(HealthTag, EStatValueType::Value) <= 0.f)
-    {
-        bIsAlive = false;
-
-        FOnDeathEvent DeathEvent;
-        DeathEvent.Killer = DamageDealer;
-        DeathEvent.Damage = DamageAfterArmor;
-        
-        OnDeath.Broadcast(DeathEvent);
-        
-        bOutKilled = true;
-    }
+    ModifyStat(InHitInfo.SourceActor, HealthTag, EStatValueType::BaseValue, -DamageAfterArmor);
+    
     OutDamageTaken = DamageAfterArmor;
     return true;
 }

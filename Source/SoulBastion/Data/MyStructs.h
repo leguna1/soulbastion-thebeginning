@@ -218,7 +218,7 @@ struct FSkillData
 	float EnergyCost = 0.f;
 	
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Data | Structs")
-	float SkillLevel = 0.f;
+	int32 SkillLevel = 0;
 	
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Data | Structs")
 	float BasePower = 0.f;
@@ -308,7 +308,30 @@ struct FStatChangedEvent
 	UPROPERTY(BlueprintReadOnly)
 	FGameplayTag StatTag;
 	
-	FStatChangedEvent() : ChangeSource(nullptr), StatTag() {}
+	UPROPERTY(BlueprintReadOnly)
+	float Delta;
+	
+	FStatChangedEvent() : ChangeSource(nullptr), StatTag(), Delta(0) {}
+};
+USTRUCT(BlueprintType)
+struct FHitInfo
+{
+	GENERATED_BODY()
+	UPROPERTY(VisibleAnywhere, BlueprintReadWrite)
+	AActor* SourceActor;
+	
+	UPROPERTY(VisibleAnywhere, BlueprintReadWrite)
+	FGameplayTag SourceTag;
+	
+	UPROPERTY(VisibleAnywhere, BlueprintReadWrite)
+	float  DamageAmount;
+	
+	UPROPERTY(VisibleAnywhere, BlueprintReadWrite)
+	FVector ImpactPoint;
+	
+	UPROPERTY(VisibleAnywhere, BlueprintReadWrite)
+	FVector ImpactNormal;
+	
 };
 
 USTRUCT(BlueprintType)

@@ -54,31 +54,40 @@ AActor* UPlayerCamera::FindBestTarget() const
     if (!OwnerActor) return nullptr;
 
     FVector CamLocation = GetComponentLocation();
-    FVector CamForward = GetForwardVector();
+    FVector CamForward  = GetForwardVector();
 
     AActor* BestTarget = nullptr;
-    float ClosestDist = TargetRadius;
+    float BestScore = -FLT_MAX;
 
-    for (TActorIterator<AActor> It(GetWorld(), TargetActorClass); It; ++It)
+    for (const TSubclassOf<AActor>& TargetClass : TargetActorClasses)
     {
-        AActor* Candidate = *It;
-        if (!Candidate || Candidate == OwnerActor) continue;
-        if (!IsActorAlive(Candidate)) continue;
+        if (!TargetClass) continue;
 
-        float Dist = FVector::Dist(Candidate->GetActorLocation(), CamLocation);
-        if (Dist > TargetRadius) continue;
-
-        FVector ToTarget = (Candidate->GetActorLocation() - CamLocation).GetSafeNormal();
-        float Dot = FVector::DotProduct(CamForward, ToTarget);
-        if (Dot < FMath::Cos(FMath::DegreesToRadians(FOVHalfAngle))) continue;
-
-        if (Dist < ClosestDist)
+        for (TActorIterator<AActor> It(GetWorld(), TargetClass); It; ++It)
         {
-            ClosestDist = Dist;
-            BestTarget = Candidate;
+            AActor* Candidate = *It;
+            if (!Candidate || Candidate == OwnerActor) continue;
+
+            // Still reuse your alive logic for now
+            if (!IsActorAlive(Candidate)) continue;
+
+            float Dist = FVector::Dist(Candidate->GetActorLocation(), CamLocation);
+            if (Dist > TargetRadius) continue;
+
+            FVector ToTarget = (Candidate->GetActorLocation() - CamLocation).GetSafeNormal();
+            float Dot = FVector::DotProduct(CamForward, ToTarget);
+            if (Dot < FMath::Cos(FMath::DegreesToRadians(FOVHalfAngle))) continue;
+
+            // Simple score: closer + more centered
+            float Score = (-Dist) + (Dot * 500.f);
+
+            if (Score > BestScore)
+            {
+                BestScore = Score;
+                BestTarget = Candidate;
+            }
         }
     }
-
     return BestTarget;
 }
 
@@ -91,5 +100,5 @@ bool UPlayerCamera::IsActorAlive(const AActor* Actor)
         return StatComp->IsAlive();
     }
 
-    return false;
+    return true;
 }
