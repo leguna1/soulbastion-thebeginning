@@ -2,8 +2,7 @@
 #include "AbilitySystem.h"
 #include "SkillBase.h"
 
-void UBufferWindow::NotifyBegin(USkeletalMeshComponent* MeshComp, UAnimSequenceBase* Animation,
-                                        float TotalDuration, const FAnimNotifyEventReference& EventReference)
+void UBufferWindow::NotifyBegin(USkeletalMeshComponent* MeshComp, UAnimSequenceBase* Animation, float TotalDuration, const FAnimNotifyEventReference& EventReference)
 {
 	// Ignore editor preview and animation tools
 	if (!MeshComp || !MeshComp->GetWorld() || !MeshComp->GetWorld()->IsGameWorld())
@@ -19,17 +18,19 @@ void UBufferWindow::NotifyBegin(USkeletalMeshComponent* MeshComp, UAnimSequenceB
 	if (CachedAbilitySystem)
 	{
 		CachedAbilitySystem->bBufferWindowOpen = true;
+		
+		CachedAbilitySystem->SetActiveSkillState(ESkillState::Active, TotalDuration);
+		
 		UE_LOG(LogTemp, Log, TEXT("Buffer window opened."));
 	}
 }
 
-void UBufferWindow::NotifyEnd(USkeletalMeshComponent* MeshComp, UAnimSequenceBase* Animation,
-									  const FAnimNotifyEventReference& EventReference)
+void UBufferWindow::NotifyEnd(USkeletalMeshComponent* MeshComp, UAnimSequenceBase* Animation, const FAnimNotifyEventReference& EventReference)
 {
 	if (!CachedAbilitySystem)
 		return;
 	
-	UAbilitySystem* AS = CachedAbilitySystem;
+	UAbilitySystem* AS = CachedAbilitySystem; 
 	AS->bBufferWindowOpen = false;
 	
 	
@@ -55,6 +56,7 @@ void UBufferWindow::NotifyEnd(USkeletalMeshComponent* MeshComp, UAnimSequenceBas
 		
 		AS->BufferedInputs.Empty();
 	}
+	
 	
 	// Clear cached references
 	CachedOwner = nullptr;

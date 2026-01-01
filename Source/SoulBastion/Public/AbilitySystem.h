@@ -19,6 +19,8 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE_ThreeParams(FOnSkillStateChanged, FGameplayTa
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_ThreeParams(FOnActivationInput, FGameplayTag, SkillTag, EActivationInput, Input, float, ElapsedTime);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FMontageEventSignature, FAnimMontageData, EventData);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_FourParams(FOnSkillChargeTime, FGameplayTag, SkillTag, int32, ChargeCount, float, MaxTime, float, TimeRemaining);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnHitResponseEvent, FHitInfo, HitResponseEvent);
+
 
 UCLASS(ClassGroup=(Custom), Blueprintable, meta=(BlueprintSpawnableComponent))
 class SOULBASTION_API UAbilitySystem : public UActorComponent
@@ -85,13 +87,23 @@ public:
 
     UFUNCTION(BlueprintCallable, Category="Skills")
     void TryActivateAbility(FGameplayTag SkillTag, EActivationInput Input, float InElapsedTime);
- 
+    USkillBase* GetSkillByTag(const FGameplayTag& Tag) const;
+    
+    UFUNCTION()
+    void ResetActiveSkill();
+    
+    UFUNCTION()
+    void TryFlushBufferedInput();
+
 
     UFUNCTION(BlueprintCallable, Category="Skills")
     void SetActiveSkillState(ESkillState NewState, float StateDuration);
     
     UFUNCTION(BlueprintPure, Category="Skills")
     FSkillData GetSkillData(FGameplayTag SkillTag) const;
+    
+    UFUNCTION(BlueprintPure, Category="Skills")
+    void GetCurrentlyActiveSkill(bool& ReturnValue, USkillBase*& Instance) const;
 
     UPROPERTY(BlueprintAssignable, Category="Skill | Event")
     FOnSkillStateChanged OnActiveSkillStateChanged;
@@ -102,14 +114,14 @@ public:
     UPROPERTY(BlueprintAssignable, Category= "Skill | Event")
     FMontageEventSignature OnMontageEvent;
     
+    UPROPERTY(BlueprintAssignable, Category="Stats")
+    FOnHitResponseEvent OnHitResponse;
+    
     UPROPERTY(BlueprintAssignable)
     FOnSkillChargeTime OnChargeTimeUpdated;
 
     UPROPERTY(Transient)
     bool bBufferWindowOpen = false;
-
-    UPROPERTY(Transient)
-    USkillBase* BufferedSkill = nullptr;
     
     UPROPERTY(Transient)
     USkillBase* ActiveSkill = nullptr;
@@ -135,18 +147,24 @@ protected:
     UFUNCTION()
     void UpdateMontageTick(UAnimMontage* MontageRef, FAbilityMontageParams MontageParams, float PlayRateMultiplier);
     UFUNCTION()
-    void UpdateMontagePlayRate(UAnimMontage* MontageRef, FAbilityMontageParams MontageParams, float PlayRateMultiplier);
+    void UpdateMontagePlayRate(const UAnimMontage* MontageRef, const FAbilityMontageParams& MontageParams, float PlayRateMultiplier) const;
     
     UFUNCTION()
     void OnMontageStartHandler(UAnimMontage* Montage);
     
+    
+
     UFUNCTION()
     void OnMontageEndHandler(UAnimMontage* Montage, bool bInterrupted);
     
     UFUNCTION()
-    void HandleNotifyBegin(FName NotifyName, const FBranchingPointNotifyPayload& Payload);
+    static bool IsStateInterruptible(ESkillState CurrentState, EInterruptibleState InterruptRule);
 
+    UFUNCTION()
+    void HandleNotifyBegin(FName NotifyName, const FBranchingPointNotifyPayload& Payload);
     
+    UFUNCTION(BlueprintCallable)
+    void HitResponse(FHitInfo InHitInfo);
 
 private:
     FTimerHandle MontageUpdateTimerHandle;

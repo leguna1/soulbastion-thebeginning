@@ -80,3 +80,12 @@ enum class EMoveMode : uint8
 	Crouching UMETA(DisplayName = "Crouching"),
 	Climbing UMETA(DisplayName = "Climbing"),
 };
+UENUM(BlueprintType)
+enum class EAbilityActivateResult : uint8
+{
+	Success             UMETA(DisplayName="Success"),
+	Failed_InvalidTag   UMETA(DisplayName="Invalid Tag"),
+	Failed_NoEnergy     UMETA(DisplayName="Not Enough Energy"),
+	Failed_NoCharges    UMETA(DisplayName="No Charges"),
+	Failed_Other        UMETA(DisplayName="Other")
+};

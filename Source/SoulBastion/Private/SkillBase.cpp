@@ -37,6 +37,7 @@ void USkillBase::ReleaseTick()
 		DEBUG_LOG("%s: Tick released. Count = %d", *GetName(), TickRequests);
 	}
 }
+
 bool USkillBase::CanActivate_Implementation(FGameplayTag Tag)
 {
 	float CurrentEnergy = GetOwningAbility() -> GetOwnerStats() -> GetStatValue(FGameplayTag::RequestGameplayTag("Stat.Energy"), EStatValueType::Value);
@@ -46,9 +47,10 @@ bool USkillBase::CanActivate_Implementation(FGameplayTag Tag)
 		DEBUG_LOG("CanActivate: All check points passed, can activate skill %s", *SkillTag.ToString());
 		return true;
 	}
-	
 	return false;
+	
 }
+
 void USkillBase::BeginRecharge(int32 ChargeToConsume)
 {
 	if (SkillData.CurrentCharge <= 0)
@@ -115,6 +117,16 @@ void USkillBase::Recharge(float DeltaTime)
 	// Broadcast current recharge time
 	if (AbilitySystemRef)
 		AbilitySystemRef->OnChargeTimeUpdated.Broadcast(SkillTag, SkillData.CurrentCharge, SkillData.RechargeTime, CurrentRechargeTime);
+}
+
+UUtilityBox* USkillBase::GetUtilityBox() const
+{
+	return OwningCharacterRef->FindComponentByClass<UUtilityBox>();
+}
+
+void USkillBase::OnOwnerHitResponse_Implementation(FHitInfo Payload)
+{
+	//Handled in blueprint by children
 }
 
 void USkillBase::OnOwnerStatChanged_Implementation(FStatChangedEvent Payload)

@@ -6,6 +6,7 @@
 #include "AbilitySystem.h"
 #include "SoulBastion/Data/MyEnums.h"
 #include "GameplayTagContainer.h"
+#include "UtilityBox.h"
 #include "GameFramework/Character.h"
 #include "SoulBastion/Data/MyDebug.h"
 #include "SkillBase.generated.h"
@@ -13,6 +14,7 @@
 /**
  * 
  */
+class UUtilityBox;
 UCLASS(Blueprintable, BlueprintType)
 class SOULBASTION_API USkillBase : public UObject, public FTickableGameObject
 {
@@ -34,7 +36,9 @@ public:
 	UFUNCTION(BlueprintNativeEvent, BlueprintCallable, Category="Skill")
 	bool CanActivate(FGameplayTag Tag);
 	virtual bool CanActivate_Implementation(FGameplayTag Tag);
-
+	
+	
+	
 	UFUNCTION(BlueprintCallable, Category="Skill | Timing")
 	void BeginRecharge(int32 ChargeToConsume = 1);
 	
@@ -45,7 +49,7 @@ public:
 	void OnAnimMontageEvent(FAnimMontageData EventData);
 	
 
-	UFUNCTION(BlueprintCallable, Category= "Skill | Timing")
+	UFUNCTION(BlueprintCallable, Category= "Skill | Timing")                 
 	void Recharge(float DeltaTime);
 	
 	
@@ -57,6 +61,9 @@ public:
 	
 	UFUNCTION(BlueprintNativeEvent, BlueprintCallable, Category= "Skill | Event")
 	void OnOwnerStatChanged(FStatChangedEvent Payload);
+	
+	UFUNCTION(BlueprintNativeEvent, BlueprintCallable, Category= "Skill | Event")
+	void OnOwnerHitResponse(FHitInfo Payload);
 
 	//Getter Functions
 
@@ -75,9 +82,30 @@ public:
 	UFUNCTION(BlueprintPure)
 	UAnimInstance* GetOwnerAnimInst() const {return OwningCharacterRef->GetMesh()->GetAnimInstance(); }
 	
+	UFUNCTION(BlueprintPure)
+	UUtilityBox* GetUtilityBox() const;
+	
+	
+	
 	//Variables
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly)
 	FGameplayTag SkillTag;
+		
+	UPROPERTY(EditDefaultsOnly, Category = "Interrupt Rule")
+	EInterruptibleState InterruptState = EInterruptibleState::None;
+	
+	
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Meta Data")
+	FSkillData SkillData;
+	
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Montage Setting")
+	FAbilityMontageParams MontageSettings;
+	
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Effects")
+	FFxData VisualEffectsSetting;
+	
+	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "Effects")
+	FCameraShakeData CameraShakeSetting;
 	
 	UPROPERTY(EditDefaultsOnly, Category = "Skill|Priority")
 	int32 Priority = 5; // 0 = passive, 5 = normal, 10 = high, 15 = ultimate/dodge
@@ -87,19 +115,6 @@ public:
 
 	UPROPERTY(EditDefaultsOnly, Category = "Skill|Priority")
 	bool bCanInterruptSelf = false; // e.g. chain attacks
-	
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Skill | Data")
-	FSkillData SkillData;
-	
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Skill | Montage")
-	FAbilityMontageParams MontageSettings;
-	
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Skill | FX")
-	FFxData VisualEffectsSetting;
-	
-	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "Skill | FX")
-	FCameraShakeData CameraShakeSetting;
-	
 	
 	
 	//Internal variables

@@ -39,7 +39,7 @@ public:
     float FOVHalfAngle = 45.f;
 
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Targeting")
-    TSubclassOf<AActor> TargetActorClass;
+    TArray<TSubclassOf<AActor>> TargetActorClasses;
 
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Targeting|Debug")
     bool bDebug = false;

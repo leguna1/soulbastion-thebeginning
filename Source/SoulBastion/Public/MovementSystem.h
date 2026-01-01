@@ -4,10 +4,14 @@
 
 #include "CoreMinimal.h"
 #include "Components/ActorComponent.h"
+#include "SoulBastion/Data/MyEnums.h"
 #include "MovementSystem.generated.h"
 
 class ACharacter;
 class UCharacterMovementComponent;
+
+
+
 UCLASS( ClassGroup=(Custom), meta=(BlueprintSpawnableComponent) )
 class SOULBASTION_API UMovementSystem : public UActorComponent
 {
@@ -33,6 +37,7 @@ protected:
 public:	
 	// Called every frame
 	virtual void TickComponent(float DeltaTime, ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction) override;
-
+	
+	
 		
 };
