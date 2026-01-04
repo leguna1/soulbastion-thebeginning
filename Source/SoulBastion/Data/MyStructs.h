@@ -182,6 +182,9 @@ struct FBufferedInput
 	EActivationInput Input;
 	
 	UPROPERTY()
+	FVector2D InputAction;
+	
+	UPROPERTY()
 	float ElapsedTime; 	
 };
 

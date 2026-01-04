@@ -16,7 +16,7 @@ class UCameraShakeBase;
 
 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_ThreeParams(FOnSkillStateChanged, FGameplayTag, SkillTag, ESkillState, NewState, float, StateDuration);
-DECLARE_DYNAMIC_MULTICAST_DELEGATE_ThreeParams(FOnActivationInput, FGameplayTag, SkillTag, EActivationInput, Input, float, ElapsedTime);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_FourParams(FOnActivationInput, FGameplayTag, SkillTag, EActivationInput, Input, FVector2D, ActionValue, float, ElapsedTime);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FMontageEventSignature, FAnimMontageData, EventData);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_FourParams(FOnSkillChargeTime, FGameplayTag, SkillTag, int32, ChargeCount, float, MaxTime, float, TimeRemaining);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnHitResponseEvent, FHitInfo, HitResponseEvent);
@@ -67,8 +67,6 @@ protected:
     
     UPROPERTY(Transient, BlueprintReadOnly)
     TArray<USkillBase*> SkillInstances;
-    
-   
 
     
 public:
@@ -86,15 +84,11 @@ public:
     UStatSystem* GetOwnerStats() const { return StatSystemRef; }
 
     UFUNCTION(BlueprintCallable, Category="Skills")
-    void TryActivateAbility(FGameplayTag SkillTag, EActivationInput Input, float InElapsedTime);
+    void TryActivateAbility(FGameplayTag SkillTag, EActivationInput Input, FVector2D InputAction, float InElapsedTime);
     USkillBase* GetSkillByTag(const FGameplayTag& Tag) const;
     
     UFUNCTION()
     void ResetActiveSkill();
-    
-    UFUNCTION()
-    void TryFlushBufferedInput();
-
 
     UFUNCTION(BlueprintCallable, Category="Skills")
     void SetActiveSkillState(ESkillState NewState, float StateDuration);

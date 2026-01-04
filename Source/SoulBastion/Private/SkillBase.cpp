@@ -138,7 +138,7 @@ void USkillBase::OnOwnerDeath_Implementation(FOnDeathEvent Payload)
 	//Handled in blueprint by children.
 }
 
-void USkillBase::OnActivation_Implementation(FGameplayTag Tag, EActivationInput Input, float ElapsedTime)
+void USkillBase::OnActivation_Implementation(FGameplayTag Tag, EActivationInput Input, FVector2D InputAction, float ElapsedTime)
 {
 	//Handled in blueprint by children.
 }

@@ -54,7 +54,7 @@ public:
 	
 	
 	UFUNCTION(BlueprintNativeEvent, BlueprintCallable, Category= "Skill | Event")
-	void OnActivation(FGameplayTag Tag, EActivationInput Input, float ElapsedTime);
+	void OnActivation(FGameplayTag Tag, EActivationInput Input, FVector2D InputAction, float ElapsedTime);
 	
 	UFUNCTION(BlueprintNativeEvent, BlueprintCallable, Category= "Skill | Event")
 	void OnOwnerDeath(FOnDeathEvent Payload);
@@ -91,8 +91,7 @@ public:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly)
 	FGameplayTag SkillTag;
 		
-	UPROPERTY(EditDefaultsOnly, Category = "Interrupt Rule")
-	EInterruptibleState InterruptState = EInterruptibleState::None;
+	
 	
 	
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Meta Data")
@@ -107,14 +106,17 @@ public:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "Effects")
 	FCameraShakeData CameraShakeSetting;
 	
-	UPROPERTY(EditDefaultsOnly, Category = "Skill|Priority")
+	UPROPERTY(EditDefaultsOnly, Category = "Skill|Activation Priority Rules ")
 	int32 Priority = 5; // 0 = passive, 5 = normal, 10 = high, 15 = ultimate/dodge
-
-	UPROPERTY(EditDefaultsOnly, Category = "Skill|Priority")
-	bool bCanBeInterrupted = true;
-
-	UPROPERTY(EditDefaultsOnly, Category = "Skill|Priority")
-	bool bCanInterruptSelf = false; // e.g. chain attacks
+	
+	UPROPERTY(EditDefaultsOnly, Category = "Skill|Activation Priority Rules")
+	EInterruptibleState LowerPriorityInterruptWindow = EInterruptibleState::None;
+	
+	UPROPERTY(EditDefaultsOnly, Category = "Skill|Activation Priority Rules")
+	EInterruptibleState EqualPriorityInterruptWindow = EInterruptibleState::None;
+	
+	UPROPERTY(EditDefaultsOnly, Category = "Skill|Activation Priority Rules")
+	EInterruptibleState SelfInterruptWindow = EInterruptibleState::None;
 	
 	
 	//Internal variables

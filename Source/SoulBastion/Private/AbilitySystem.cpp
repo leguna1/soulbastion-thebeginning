@@ -110,68 +110,86 @@ void UAbilitySystem::SetupSkills()
 }
 
 //Main Functions
-void UAbilitySystem::TryActivateAbility(const FGameplayTag SkillTag, const EActivationInput Input, const float InElapsedTime)
+void UAbilitySystem::TryActivateAbility(const FGameplayTag SkillTag, const EActivationInput Input, const FVector2D InputAction, const float InElapsedTime)
 {
 	
-	USkillBase* RequestedSkill = nullptr; 
-	for (USkillBase* Skill : SkillInstances) 
-	{ 
-		if (Skill && Skill->SkillTag == SkillTag)
-		{
-			RequestedSkill = Skill; break;
-		} 
-	}
-	if (!RequestedSkill)
-	{
-		UE_LOG(LogTemp, Warning, TEXT("[Ability] Skill %s does not exist"), *SkillTag.ToString()); 
-		return;
-	}
-	if (!IsValid(ActiveSkill))
-	{
-		OnActivationInput.Broadcast(SkillTag, Input, InElapsedTime); 
-		return;
-	}
-	const bool bCanActivateRequested = RequestedSkill->CanActivate_Implementation(SkillTag);
+	USkillBase* RequestedSkill = GetSkillByTag(SkillTag);
 
-	if (!bCanActivateRequested)
-	{
-		return;
-	}
-	
-	// ---- FROM HERE ON: ActiveSkill IS GUARANTEED VALID ----
+    if (!RequestedSkill)
+    {
+        UE_LOG(LogTemp, Warning, TEXT("[Ability] Skill %s does not exist"), *SkillTag.ToString());
+        return;
+    }
 
-	// Cache active skill data
-	const int32 ActivePriority = ActiveSkill->Priority;
-	const bool bActiveCanBeInterrupted = ActiveSkill->bCanBeInterrupted;
-	const bool bActiveCanSelfInterrupt = ActiveSkill->bCanInterruptSelf;
-	const FGameplayTag ActiveTag = ActiveSkill->SkillTag;
-	
-	// 4. Higher priority interrupts
-	if (RequestedSkill->Priority > ActivePriority && bActiveCanBeInterrupted)
-	{
-		OnActivationInput.Broadcast(SkillTag, Input, InElapsedTime);
-		UE_LOG(LogTemp, Warning, TEXT("[Ability] %s INTERRUPTS %s (Priority %d > %d)"), *SkillTag.ToString(), *ActiveTag.ToString(), RequestedSkill->Priority, ActivePriority);
-		
-		return;
-	}
-	
-	// 5. Equal priority or self-interrupt → buffer
-	const bool bEqualPriority = RequestedSkill->Priority == ActivePriority && bActiveCanBeInterrupted;
-	const bool bSelfInterrupt =ActiveSkill == RequestedSkill && bActiveCanSelfInterrupt;
-	
-	const bool bShouldBuffer = bEqualPriority || bSelfInterrupt;
-	
-	if (bShouldBuffer && bBufferWindowOpen)
-	{
-		BufferedInputs.Add({ SkillTag, Input, InElapsedTime });
-		
-		DEBUG_LOG("Buffered input: %s, input=%d", *SkillTag.ToString(), (int)Input);
-		
-	}
-	else if (!bShouldBuffer)
-	{
-		UE_LOG(LogTemp, Log, TEXT("[Ability] %s blocked by %s (higher priority skill)"), *SkillTag.ToString(), *ActiveTag.ToString());
-	}
+    // --------------------------------------------------
+    // No active skill → any skill may activate
+    // --------------------------------------------------
+    if (!IsValid(ActiveSkill))
+    {
+        if (RequestedSkill->CanActivate_Implementation(SkillTag))
+        {
+            OnActivationInput.Broadcast(SkillTag, Input, InputAction, InElapsedTime);
+        }
+        return;
+    }
+
+    // --------------------------------------------------
+    // Active skill exists
+    // --------------------------------------------------
+    const bool bIsSameSkill = ActiveSkill->SkillTag.MatchesTagExact(SkillTag);
+
+    // --------------------------------------------------
+    // Same skill logic (self-interrupt or buffer)
+    // --------------------------------------------------
+    if (bIsSameSkill)
+    {
+        if (IsStateInterruptible(
+                ActiveSkill->SkillState,
+                ActiveSkill->SelfInterruptWindow)
+            && RequestedSkill->CanActivate_Implementation(SkillTag))
+        {
+        	OnActivationInput.Broadcast(SkillTag, Input, InputAction, InElapsedTime);
+        }
+        else if (bBufferWindowOpen)
+        {
+        	BufferedInputs.Add({ SkillTag, Input, InputAction, InElapsedTime });
+            DEBUG_LOG("Buffered input: %s, input=%d",
+                      *SkillTag.ToString(), (int)Input);
+        }
+        return;
+    }
+
+    // --------------------------------------------------
+    // Different skill logic
+    // --------------------------------------------------
+    const bool bIsHigherPriorityRequest =
+        RequestedSkill->Priority > ActiveSkill->Priority;
+
+    // --------------------------------------------------
+    // LOWER priority → IGNORE (no buffering)
+    // --------------------------------------------------
+    if (!bIsHigherPriorityRequest)
+    {
+        return;
+    }
+
+    // --------------------------------------------------
+    // Higher priority → interrupt or buffer
+    // --------------------------------------------------
+    if (RequestedSkill->CanActivate_Implementation(SkillTag)
+        && IsStateInterruptible(
+            ActiveSkill->SkillState,
+            RequestedSkill->LowerPriorityInterruptWindow))
+    {
+        ResetActiveSkill();
+    	OnActivationInput.Broadcast(SkillTag, Input, InputAction, InElapsedTime);
+    }
+    else if (bBufferWindowOpen)
+    {
+        BufferedInputs.Add({ SkillTag, Input, InputAction, InElapsedTime });
+        DEBUG_LOG("Buffered input: %s, input=%d",
+                  *SkillTag.ToString(), (int)Input);
+    }
 	
 }
 USkillBase* UAbilitySystem::GetSkillByTag(const FGameplayTag& Tag) const
@@ -452,10 +470,11 @@ void UAbilitySystem::OnMontageStartHandler(UAnimMontage* Montage)
 	if (!Montage) return;
 
 	// If there is an active skill already, it becomes the old skill
+	
 	if (ActiveSkill && ActiveSkill->MontageSettings.MontageToPlay != Montage)
 	{
 		OldActiveSkill = ActiveSkill;
-	}
+	} 
 
 	// Find the skill instance that matches this montage
 	for (USkillBase* Skill : SkillInstances)
@@ -475,30 +494,12 @@ void UAbilitySystem::OnMontageStartHandler(UAnimMontage* Montage)
 		return; // done
 	}
 }
-void UAbilitySystem::TryFlushBufferedInput()
-{
-	if (!ActiveSkill)
-		return;
-
-	if (BufferedInputs.Num() == 0)
-		return;
-
-	const FBufferedInput& Last = BufferedInputs.Last();
-
-	if (IsStateInterruptible(ActiveSkill->SkillState, GetSkillByTag(Last.SkillTag)->InterruptState))
-	{
-		
-		OnActivationInput.Broadcast(Last.SkillTag, Last.Input, Last.ElapsedTime );
-		
-		BufferedInputs.Empty();
-		UE_LOG(LogTemp, Log, TEXT("[Ability] Early flush buffered input: %s"), *Last.SkillTag.ToString());
-	}
-}
 void UAbilitySystem::OnMontageEndHandler(UAnimMontage* Montage, bool bInterrupted)
 {
 	if (!Montage) return;
 
 	// First, handle old skill if its montage matches
+	
 	if (OldActiveSkill && OldActiveSkill->MontageSettings.MontageToPlay == Montage)
 	{
 		// Broadcast Completed or Interrupted

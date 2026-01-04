@@ -19,8 +19,6 @@ void UBufferWindow::NotifyBegin(USkeletalMeshComponent* MeshComp, UAnimSequenceB
 	{
 		CachedAbilitySystem->bBufferWindowOpen = true;
 		
-		CachedAbilitySystem->SetActiveSkillState(ESkillState::Active, TotalDuration);
-		
 		UE_LOG(LogTemp, Log, TEXT("Buffer window opened."));
 	}
 }
@@ -32,27 +30,15 @@ void UBufferWindow::NotifyEnd(USkeletalMeshComponent* MeshComp, UAnimSequenceBas
 	
 	UAbilitySystem* AS = CachedAbilitySystem; 
 	AS->bBufferWindowOpen = false;
-	
-	
-	if (AS->ActiveSkill)
-	{
-		AS->SetActiveSkillState(ESkillState::Recovery, 0.f);
-	}
-	
 
 	if (AS->BufferedInputs.Num() > 0)
 	{
 		const FBufferedInput& Last  = AS->BufferedInputs.Last();
 		
-		UE_LOG(LogTemp,  Log,
-			TEXT("Flushing buffered input: %s, input=%d"),
-			*Last.SkillTag.ToString(),
-			(int)Last.Input);
 		
-		AS->OnActivationInput.Broadcast(
-			Last.SkillTag,
-			Last.Input,
-			Last.ElapsedTime);
+		UE_LOG(LogTemp,  Log, TEXT("Flushing buffered input: %s, input=%d"),*Last.SkillTag.ToString(), (int)Last.Input);
+		
+		AS->TryActivateAbility( Last.SkillTag, Last.Input, Last.InputAction, Last.ElapsedTime);
 		
 		AS->BufferedInputs.Empty();
 	}
