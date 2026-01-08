@@ -3,7 +3,7 @@
 
 #include "CoreMinimal.h"
 
-#define ENABLE_MY_DEBUG 0 // Set to 0 to disable all debug messages
+#define ENABLE_MY_DEBUG 1 // Set to 0 to disable all debug messages
 
 #if ENABLE_MY_DEBUG
 	#define DEBUG_LOG(Message, ...) \

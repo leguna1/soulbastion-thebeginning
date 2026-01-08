@@ -26,7 +26,7 @@ bool USkillBase::IsTickable() const
 void USkillBase::RequestTick()
 {
 	++TickRequests;
-	DEBUG_LOG("%s: Tick requested. Count = %d", *GetName(), TickRequests);
+	
 }
 
 void USkillBase::ReleaseTick()
@@ -34,7 +34,7 @@ void USkillBase::ReleaseTick()
 	if (TickRequests > 0)
 	{
 		--TickRequests;
-		DEBUG_LOG("%s: Tick released. Count = %d", *GetName(), TickRequests);
+		
 	}
 }
 
@@ -44,7 +44,7 @@ bool USkillBase::CanActivate_Implementation(FGameplayTag Tag)
 	
 	if (Tag == SkillTag && SkillData.MaxCharge > 0 && SkillData.CurrentCharge > 0 && CurrentEnergy >= SkillData.EnergyCost)
 	{
-		DEBUG_LOG("CanActivate: All check points passed, can activate skill %s", *SkillTag.ToString());
+		
 		return true;
 	}
 	return false;
@@ -92,7 +92,7 @@ void USkillBase::Recharge(float DeltaTime)
 		{
 			++SkillData.CurrentCharge;
 			CurrentRechargeTime -= SkillData.RechargeTime;
-			DEBUG_LOG("%s: Recharged 1 charge. CurrentCharge = %d/%d", *GetName(), SkillData.CurrentCharge, SkillData.MaxCharge);
+			
 		}
 
 		// Clamp the timer for safety
@@ -108,7 +108,7 @@ void USkillBase::Recharge(float DeltaTime)
 			SkillData.CurrentCharge = 1;
 			CurrentRechargeTime = 0.f;
 			ReleaseTick();
-			DEBUG_LOG("%s: Single-charge skill fully recharged.", *GetName());
+			
 		}
 
 		CurrentRechargeTime = FMath::Clamp(CurrentRechargeTime, 0.f, SkillData.RechargeTime);

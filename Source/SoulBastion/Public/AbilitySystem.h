@@ -91,7 +91,7 @@ public:
     void ResetActiveSkill();
 
     UFUNCTION(BlueprintCallable, Category="Skills")
-    void SetActiveSkillState(ESkillState NewState, float StateDuration);
+    void SetActiveSkillState(ESkillState NewState, float StateDuration) const;
     
     UFUNCTION(BlueprintPure, Category="Skills")
     FSkillData GetSkillData(FGameplayTag SkillTag) const;
@@ -158,7 +158,7 @@ protected:
     void HandleNotifyBegin(FName NotifyName, const FBranchingPointNotifyPayload& Payload);
     
     UFUNCTION(BlueprintCallable)
-    void HitResponse(FHitInfo InHitInfo);
+    void HitResponse(FHitInfo InHitInfo) const;
 
 private:
     FTimerHandle MontageUpdateTimerHandle;

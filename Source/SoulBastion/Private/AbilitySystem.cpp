@@ -1,15 +1,11 @@
 #include "AbilitySystem.h"
 
-#include "AudioDevice.h"
 #include "GameFramework/Character.h"
 #include "PlayerCamera.h"
 #include "StatSystem.h"
 #include "MotionWarpingComponent.h"
 #include "DrawDebugHelpers.h"
 #include "SkillBase.h"
-#include "NiagaraFunctionLibrary.h"
-#include "NiagaraComponent.h"
-#include "Kismet/GameplayStatics.h"
 #include "Camera/CameraShakeBase.h"
 
 
@@ -113,82 +109,101 @@ void UAbilitySystem::SetupSkills()
 void UAbilitySystem::TryActivateAbility(const FGameplayTag SkillTag, const EActivationInput Input, const FVector2D InputAction, const float InElapsedTime)
 {
 	
-	USkillBase* RequestedSkill = GetSkillByTag(SkillTag);
+	UE_LOG(LogTemp, Warning, TEXT("[Ability] TryActivateAbility: %s"), *SkillTag.ToString());
 
+    USkillBase* RequestedSkill = GetSkillByTag(SkillTag);
     if (!RequestedSkill)
     {
-        UE_LOG(LogTemp, Warning, TEXT("[Ability] Skill %s does not exist"), *SkillTag.ToString());
+        UE_LOG(LogTemp, Warning, TEXT("[Ability] Skill NOT FOUND"));
         return;
     }
 
-    // --------------------------------------------------
-    // No active skill → any skill may activate
-    // --------------------------------------------------
+    UE_LOG(LogTemp, Warning, TEXT("[Ability] RequestedSkill valid"));
+
+    // No active skill
     if (!IsValid(ActiveSkill))
     {
+        UE_LOG(LogTemp, Warning, TEXT("[Ability] No ActiveSkill"));
+
         if (RequestedSkill->CanActivate_Implementation(SkillTag))
         {
+            UE_LOG(LogTemp, Warning, TEXT("[Ability] Activating (no active skill)"));
             OnActivationInput.Broadcast(SkillTag, Input, InputAction, InElapsedTime);
+        }
+        else
+        {
+            UE_LOG(LogTemp, Warning, TEXT("[Ability] CanActivate failed (no active skill)"));
         }
         return;
     }
 
-    // --------------------------------------------------
-    // Active skill exists
-    // --------------------------------------------------
-    const bool bIsSameSkill = ActiveSkill->SkillTag.MatchesTagExact(SkillTag);
+    UE_LOG(LogTemp, Warning,
+        TEXT("[Ability] ActiveSkill: %s | State=%d"),
+        *ActiveSkill->SkillTag.ToString(),
+        (int32)ActiveSkill->SkillState);
 
-    // --------------------------------------------------
-    // Same skill logic (self-interrupt or buffer)
-    // --------------------------------------------------
-    if (bIsSameSkill)
+    // Same skill
+    if (ActiveSkill->SkillTag.MatchesTagExact(SkillTag))
     {
-        if (IsStateInterruptible(
-                ActiveSkill->SkillState,
-                ActiveSkill->SelfInterruptWindow)
-            && RequestedSkill->CanActivate_Implementation(SkillTag))
+        UE_LOG(LogTemp, Warning, TEXT("[Ability] Same skill requested"));
+
+        const bool bInterruptible =
+            IsStateInterruptible(ActiveSkill->SkillState, ActiveSkill->SelfInterruptWindow);
+
+        UE_LOG(LogTemp, Warning,
+            TEXT("[Ability] SelfInterruptible=%d CanActivate=%d BufferOpen=%d"),
+            bInterruptible,
+            RequestedSkill->CanActivate_Implementation(SkillTag),
+            bBufferWindowOpen);
+
+        if (bInterruptible && RequestedSkill->CanActivate_Implementation(SkillTag))
         {
-        	OnActivationInput.Broadcast(SkillTag, Input, InputAction, InElapsedTime);
+            UE_LOG(LogTemp, Warning, TEXT("[Ability] Self-interrupt → Reactivate"));
+            OnActivationInput.Broadcast(SkillTag, Input, InputAction, InElapsedTime);
         }
         else if (bBufferWindowOpen)
         {
-        	BufferedInputs.Add({ SkillTag, Input, InputAction, InElapsedTime });
-            DEBUG_LOG("Buffered input: %s, input=%d",
-                      *SkillTag.ToString(), (int)Input);
+            UE_LOG(LogTemp, Warning, TEXT("[Ability] Buffering SAME skill"));
+            BufferedInputs.Add({ SkillTag, Input, InputAction, InElapsedTime });
         }
         return;
     }
 
-    // --------------------------------------------------
-    // Different skill logic
-    // --------------------------------------------------
+    // Different skill
     const bool bIsHigherPriorityRequest =
         RequestedSkill->Priority > ActiveSkill->Priority;
 
-    // --------------------------------------------------
-    // LOWER priority → IGNORE (no buffering)
-    // --------------------------------------------------
+    UE_LOG(LogTemp, Warning,
+        TEXT("[Ability] Different skill | HigherPriority=%d"),
+        bIsHigherPriorityRequest);
+
     if (!bIsHigherPriorityRequest)
     {
+        UE_LOG(LogTemp, Warning, TEXT("[Ability] Ignored (lower priority)"));
         return;
     }
 
-    // --------------------------------------------------
-    // Higher priority → interrupt or buffer
-    // --------------------------------------------------
-    if (RequestedSkill->CanActivate_Implementation(SkillTag)
-        && IsStateInterruptible(
+    const bool bInterruptible =
+        IsStateInterruptible(
             ActiveSkill->SkillState,
-            RequestedSkill->LowerPriorityInterruptWindow))
+            RequestedSkill->LowerPriorityInterruptWindow);
+
+    UE_LOG(LogTemp, Warning,
+        TEXT("[Ability] Interruptible=%d CanActivate=%d BufferOpen=%d"),
+        bInterruptible,
+        RequestedSkill->CanActivate_Implementation(SkillTag),
+        bBufferWindowOpen);
+
+    if (RequestedSkill->CanActivate_Implementation(SkillTag) && bInterruptible)
     {
+        UE_LOG(LogTemp, Warning, TEXT("[Ability] Interrupting → Activate"));
         ResetActiveSkill();
-    	OnActivationInput.Broadcast(SkillTag, Input, InputAction, InElapsedTime);
+        OnActivationInput.Broadcast(SkillTag, Input, InputAction, InElapsedTime);
     }
     else if (bBufferWindowOpen)
     {
+        UE_LOG(LogTemp, Warning, TEXT("[Ability] Buffering DIFFERENT skill"));
         BufferedInputs.Add({ SkillTag, Input, InputAction, InElapsedTime });
-        DEBUG_LOG("Buffered input: %s, input=%d",
-                  *SkillTag.ToString(), (int)Input);
     }
 	
 }
@@ -227,7 +242,7 @@ void UAbilitySystem::ResetActiveSkill()
 	ActiveSkill = nullptr;
 }
 //Sub-Functions
-void UAbilitySystem::SetActiveSkillState(ESkillState NewState, float StateDuration)
+void UAbilitySystem::SetActiveSkillState(const ESkillState NewState, const float StateDuration) const
 {
 	if (!ActiveSkill)
 	{
@@ -586,7 +601,7 @@ void UAbilitySystem::HandleNotifyBegin(FName NotifyName, const FBranchingPointNo
 	OnMontageEvent.Broadcast(Data);
 }
 
-void UAbilitySystem::HitResponse(FHitInfo InHitInfo)
+void UAbilitySystem::HitResponse(const FHitInfo InHitInfo) const
 {
 	OnHitResponse.Broadcast(InHitInfo);
 }

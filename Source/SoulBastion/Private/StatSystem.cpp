@@ -1,9 +1,4 @@
 #include "StatSystem.h"
-#include "NiagaraFunctionLibrary.h"
-#include "NiagaraComponent.h"
-#include "DSP/MidiNoteQuantizer.h"
-#include "Kismet/GameplayStatics.h"
-
 
 UStatSystem::UStatSystem()
 {
@@ -234,7 +229,7 @@ bool UStatSystem::TakeDamage(const FHitInfo InHitInfo, float& OutDamageTaken)
     const FGameplayTag HealthTag = FGameplayTag::RequestGameplayTag("Stat.Health");
     const FGameplayTag ArmorTag  = FGameplayTag::RequestGameplayTag("Stat.Armor");
 
-    float DamageAfterArmor = FMath::Max(0.f, InHitInfo.DamageAmount - GetStatValue(ArmorTag, EStatValueType::Value));
+    const float DamageAfterArmor = FMath::Max(0.f, InHitInfo.DamageAmount - GetStatValue(ArmorTag, EStatValueType::Value));
     
     ModifyStat(InHitInfo.SourceActor, HealthTag, EStatValueType::BaseValue, -DamageAfterArmor);
     

@@ -35,11 +35,8 @@ void UBufferWindow::NotifyEnd(USkeletalMeshComponent* MeshComp, UAnimSequenceBas
 	{
 		const FBufferedInput& Last  = AS->BufferedInputs.Last();
 		
-		
+		AS->TryActivateAbility(Last.SkillTag, Last.Input, Last.InputAction, Last.ElapsedTime);
 		UE_LOG(LogTemp,  Log, TEXT("Flushing buffered input: %s, input=%d"),*Last.SkillTag.ToString(), (int)Last.Input);
-		
-		AS->TryActivateAbility( Last.SkillTag, Last.Input, Last.InputAction, Last.ElapsedTime);
-		
 		AS->BufferedInputs.Empty();
 	}
 	
