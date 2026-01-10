@@ -18,7 +18,7 @@ struct FMontageAsyncData
     GENERATED_BODY()
 
     UPROPERTY(BlueprintReadOnly)
-    EAnimMontageState State;
+    EAnimMontageState State = EAnimMontageState::Started;
 
     UPROPERTY(BlueprintReadOnly)
     float NormalizedTime = 0.f;

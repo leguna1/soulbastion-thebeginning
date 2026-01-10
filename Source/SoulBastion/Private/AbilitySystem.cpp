@@ -4,9 +4,8 @@
 #include "PlayerCamera.h"
 #include "StatSystem.h"
 #include "MotionWarpingComponent.h"
-#include "DrawDebugHelpers.h"
 #include "SkillBase.h"
-#include "Camera/CameraShakeBase.h"
+
 
 
 UAbilitySystem::UAbilitySystem()
@@ -106,7 +105,7 @@ void UAbilitySystem::SetupSkills()
 }
 
 //Main Functions
-void UAbilitySystem::TryActivateAbility(const FGameplayTag SkillTag, const EActivationInput Input, const FVector2D InputAction, const float InElapsedTime)
+void UAbilitySystem::TryActivateAbility(const FGameplayTag SkillTag, const FMyPlayerInput PlayerInput)
 {
 	
 	UE_LOG(LogTemp, Warning, TEXT("[Ability] TryActivateAbility: %s"), *SkillTag.ToString());
@@ -128,7 +127,7 @@ void UAbilitySystem::TryActivateAbility(const FGameplayTag SkillTag, const EActi
         if (RequestedSkill->CanActivate_Implementation(SkillTag))
         {
             UE_LOG(LogTemp, Warning, TEXT("[Ability] Activating (no active skill)"));
-            OnActivationInput.Broadcast(SkillTag, Input, InputAction, InElapsedTime);
+            OnActivationInput.Broadcast(SkillTag, PlayerInput);
         }
         else
         {
@@ -159,12 +158,12 @@ void UAbilitySystem::TryActivateAbility(const FGameplayTag SkillTag, const EActi
         if (bInterruptible && RequestedSkill->CanActivate_Implementation(SkillTag))
         {
             UE_LOG(LogTemp, Warning, TEXT("[Ability] Self-interrupt → Reactivate"));
-            OnActivationInput.Broadcast(SkillTag, Input, InputAction, InElapsedTime);
+            OnActivationInput.Broadcast(SkillTag, PlayerInput);
         }
         else if (bBufferWindowOpen)
         {
             UE_LOG(LogTemp, Warning, TEXT("[Ability] Buffering SAME skill"));
-            BufferedInputs.Add({ SkillTag, Input, InputAction, InElapsedTime });
+            BufferedInputs.Add({ SkillTag, PlayerInput.Input, PlayerInput.InputAction, PlayerInput.InElapsedTime });
         }
         return;
     }
@@ -198,12 +197,12 @@ void UAbilitySystem::TryActivateAbility(const FGameplayTag SkillTag, const EActi
     {
         UE_LOG(LogTemp, Warning, TEXT("[Ability] Interrupting → Activate"));
         ResetActiveSkill();
-        OnActivationInput.Broadcast(SkillTag, Input, InputAction, InElapsedTime);
+        OnActivationInput.Broadcast(SkillTag, PlayerInput);
     }
     else if (bBufferWindowOpen)
     {
         UE_LOG(LogTemp, Warning, TEXT("[Ability] Buffering DIFFERENT skill"));
-        BufferedInputs.Add({ SkillTag, Input, InputAction, InElapsedTime });
+        BufferedInputs.Add({ SkillTag, PlayerInput.Input, PlayerInput.InputAction, PlayerInput.InElapsedTime });
     }
 	
 }
@@ -239,6 +238,7 @@ void UAbilitySystem::ResetActiveSkill()
 		}
 	}
 	ActiveSkill->SkillState = ESkillState::Ready;
+	ActiveActionTag = FGameplayTag::EmptyTag;
 	ActiveSkill = nullptr;
 }
 //Sub-Functions
@@ -423,7 +423,6 @@ void UAbilitySystem::ApplyMotionWarp(bool bUseWarp, const FAbilityMontageParams&
 	
 }
 
-
 void UAbilitySystem::UpdateMontageTick(UAnimMontage* MontageRef, FAbilityMontageParams MontageParams, float PlayRateMultiplier)
 {
 	if (!ActiveSkill || !OwnerCharacter || !MontageRef)
@@ -502,6 +501,8 @@ void UAbilitySystem::OnMontageStartHandler(UAnimMontage* Montage)
 
 		// Update skill state
 		Skill->SkillState = ESkillState::Windup;
+		
+		ActiveActionTag = ActiveSkill->ActivationGrantedOwnerTag; 
 
 		// Notify listeners
 		OnActiveSkillStateChanged.Broadcast(Skill->SkillTag, Skill->SkillState, 0.f);
@@ -525,6 +526,7 @@ void UAbilitySystem::OnMontageEndHandler(UAnimMontage* Montage, bool bInterrupte
 		
 		// Reset old skill state
 		OldActiveSkill->SkillState = ESkillState::Ready;
+		
 		OnActiveSkillStateChanged.Broadcast(OldActiveSkill->SkillTag, ESkillState::Ready, 0.f);
 
 		OldActiveSkill = nullptr;
@@ -540,6 +542,7 @@ void UAbilitySystem::OnMontageEndHandler(UAnimMontage* Montage, bool bInterrupte
 
 		ActiveSkill->SkillState = ESkillState::Ready;
 		OnActiveSkillStateChanged.Broadcast(ActiveSkill->SkillTag, ESkillState::Ready, 0.f);
+		ActiveActionTag = FGameplayTag::EmptyTag;
 
 		ActiveSkill = nullptr;
 	}

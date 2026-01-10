@@ -13,13 +13,13 @@ struct FSoulForceEffect
 	GENERATED_BODY()
 	
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly)
-	FGameplayTag StatToScale;
+	FGameplayTag StatToScale = FGameplayTag::EmptyTag;
 	
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly)
 	float StatScalarValue = 0.f;
 	
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly)
-	EStatValueType StatValueTypeToScale;
+	EStatValueType StatValueTypeToScale = EStatValueType::None;
 };
 
 USTRUCT(BlueprintType)
@@ -28,7 +28,7 @@ struct FSoulForceData
 	GENERATED_BODY()
 	
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly)
-	FGameplayTag StatTag;
+	FGameplayTag StatTag = FGameplayTag::EmptyTag;
 	
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
 	FText Description;
@@ -59,7 +59,7 @@ struct FStatData
 	GENERATED_BODY()
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
-	FGameplayTag StatTag;
+	FGameplayTag StatTag = FGameplayTag::EmptyTag;
 	
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly)
 	FText Description;
@@ -110,7 +110,7 @@ struct FSkillStateTime
 	GENERATED_BODY()
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
-	ESkillState SkillState;
+	ESkillState SkillState = ESkillState::Ready;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
 	float Time = 0.f;
@@ -119,7 +119,7 @@ struct FSkillStateTime
 	float TimeRemaining = 0.f;
 
 	UPROPERTY()
-	bool bShouldAscend; //If true, TimeRemaining start from 0 to meet Time
+	bool bShouldAscend = false; //If true, TimeRemaining start from 0 to meet Time
 	
 };
 
@@ -145,7 +145,6 @@ struct FAbilityMontageParams
 	// Optional curve for dynamic play rate across montage (Normalized 0..1)
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
 	UCurveFloat* PlayRateCurve = nullptr;
-
 	
 	// Translation mode (None / ToTargetActor / Forward / Backward)
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
@@ -154,9 +153,7 @@ struct FAbilityMontageParams
 	// Rotation mode (None / ToTargetActor)
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
 	EMotionWarpRotationMode RotationMode = EMotionWarpRotationMode::None;
-
 	
-
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
 	FName WarpName = FName("Warp");
 
@@ -176,16 +173,31 @@ struct FBufferedInput
 	GENERATED_BODY()
 	
 	UPROPERTY()
-	FGameplayTag SkillTag;
+	FGameplayTag SkillTag = FGameplayTag::EmptyTag;
 	
 	UPROPERTY()
-	EActivationInput Input;
+	EActivationInput Input = EActivationInput::Tap;
 	
 	UPROPERTY()
-	FVector2D InputAction;
+	FVector2D InputAction = FVector2D::ZeroVector;
 	
 	UPROPERTY()
-	float ElapsedTime; 	
+	float ElapsedTime = 0.f; 	
+};
+
+USTRUCT(BlueprintType)
+struct FMyPlayerInput
+{
+	GENERATED_BODY()
+	
+	UPROPERTY(VisibleAnywhere, BlueprintReadWrite, Category = "Data | Structs")
+	EActivationInput Input = EActivationInput::Tap;
+	
+	UPROPERTY(VisibleAnywhere, BlueprintReadWrite, Category = "Data | Structs")
+	FVector2D InputAction = FVector2D::ZeroVector;
+	
+	UPROPERTY(VisibleAnywhere, BlueprintReadWrite, Category = "Data | Structs")
+	float InElapsedTime = 0.f;
 };
 
 USTRUCT(BlueprintType)
@@ -195,7 +207,7 @@ struct FAnimMontageData
 
 	
 	UPROPERTY(BlueprintReadOnly)
-	mutable EAnimMontageState State;
+	mutable EAnimMontageState State = EAnimMontageState::Started;
 	
 	UPROPERTY(BlueprintReadOnly)
 	FName NotifyName = NAME_None;   // 🔥 new field
@@ -306,13 +318,13 @@ struct FStatChangedEvent
 	GENERATED_BODY()
 
 	UPROPERTY(BlueprintReadOnly)
-	AActor* ChangeSource;
+	AActor* ChangeSource = nullptr;
 	
 	UPROPERTY(BlueprintReadOnly)
-	FGameplayTag StatTag;
+	FGameplayTag StatTag = FGameplayTag::EmptyTag;
 	
 	UPROPERTY(BlueprintReadOnly)
-	float Delta;
+	float Delta = 0.f;
 	
 	FStatChangedEvent() : ChangeSource(nullptr), StatTag(), Delta(0) {}
 };
@@ -321,19 +333,19 @@ struct FHitInfo
 {
 	GENERATED_BODY()
 	UPROPERTY(VisibleAnywhere, BlueprintReadWrite)
-	AActor* SourceActor;
+	AActor* SourceActor = nullptr;
 	
 	UPROPERTY(VisibleAnywhere, BlueprintReadWrite)
-	FGameplayTag SourceTag;
+	FGameplayTag SourceTag = FGameplayTag::EmptyTag;
 	
 	UPROPERTY(VisibleAnywhere, BlueprintReadWrite)
-	float  DamageAmount;
+	float  DamageAmount = 0.f;
 	
 	UPROPERTY(VisibleAnywhere, BlueprintReadWrite)
-	FVector ImpactPoint;
+	FVector ImpactPoint = FVector::ZeroVector;
 	
 	UPROPERTY(VisibleAnywhere, BlueprintReadWrite)
-	FVector ImpactNormal;
+	FVector ImpactNormal = FVector::ZeroVector;
 	
 };
 

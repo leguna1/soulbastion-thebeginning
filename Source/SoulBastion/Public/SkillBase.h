@@ -54,7 +54,7 @@ public:
 	
 	
 	UFUNCTION(BlueprintNativeEvent, BlueprintCallable, Category= "Skill | Event")
-	void OnActivation(FGameplayTag Tag, EActivationInput Input, FVector2D InputAction, float ElapsedTime);
+	void OnActivation(FGameplayTag Tag, FMyPlayerInput PlayerInput);
 	
 	UFUNCTION(BlueprintNativeEvent, BlueprintCallable, Category= "Skill | Event")
 	void OnOwnerDeath(FOnDeathEvent Payload);
@@ -91,8 +91,8 @@ public:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly)
 	FGameplayTag SkillTag;
 		
-	
-	
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Skill|Activation Tags")
+	FGameplayTag ActivationGrantedOwnerTag;
 	
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Meta Data")
 	FSkillData SkillData;
