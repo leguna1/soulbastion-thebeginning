@@ -119,6 +119,12 @@ void USkillBase::Recharge(float DeltaTime)
 		AbilitySystemRef->OnChargeTimeUpdated.Broadcast(SkillTag, SkillData.CurrentCharge, SkillData.RechargeTime, CurrentRechargeTime);
 }
 
+ESkillState USkillBase::GetSkillState(float& StateDuration) const
+{
+	StateDuration = CurrentStateDuration;
+	return SkillState;
+}
+
 UUtilityBox* USkillBase::GetUtilityBox() const
 {
 	return OwningCharacterRef->FindComponentByClass<UUtilityBox>();

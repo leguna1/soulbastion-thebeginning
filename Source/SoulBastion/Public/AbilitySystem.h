@@ -62,8 +62,6 @@ protected:
 
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Skills")
     TArray<TSubclassOf<class USkillBase>> SkillClasses;
-
-    
     
     UPROPERTY(Transient, BlueprintReadOnly)
     TArray<USkillBase*> SkillInstances;
@@ -128,7 +126,7 @@ public:
     
     UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Ability | Active Action")
     FGameplayTag ActiveActionTag;
-
+    
     
 protected:
    
@@ -140,7 +138,7 @@ protected:
     void PlayAbilityMontage(const FAbilityMontageParams& Params, bool bUseMotionWarp);
     
     UFUNCTION(BlueprintCallable)
-    void ApplyMotionWarp(bool bUseWarp, const FAbilityMontageParams& MontageParams);
+    void ApplyMotionWarp(bool bUseWarp, const FAbilityMontageParams& MontageParams) const;
     UFUNCTION()
     void UpdateMontageTick(UAnimMontage* MontageRef, FAbilityMontageParams MontageParams, float PlayRateMultiplier);
     UFUNCTION()
@@ -161,7 +159,9 @@ protected:
     void HandleNotifyBegin(FName NotifyName, const FBranchingPointNotifyPayload& Payload);
     
     UFUNCTION(BlueprintCallable)
-    void HitResponse(FHitInfo InHitInfo) const;
+    EHitResult HitResponse(FHitInfo InHitInfo) const;
+    
+
 
 private:
     FTimerHandle MontageUpdateTimerHandle;

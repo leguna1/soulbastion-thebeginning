@@ -77,7 +77,7 @@ public:
 	UStatSystem* GetOwnerStats() const {return AbilitySystemRef->GetOwnerStats(); }
 
 	UFUNCTION(BlueprintPure)
-	ESkillState GetSkillState() const {return SkillState;}
+	ESkillState GetSkillState(float &StateDuration) const;
 	
 	UFUNCTION(BlueprintPure)
 	UAnimInstance* GetOwnerAnimInst() const {return OwningCharacterRef->GetMesh()->GetAnimInstance(); }
@@ -126,6 +126,9 @@ public:
 	
 	UPROPERTY()
 	ESkillState SkillState = ESkillState::Ready;
+	
+	UPROPERTY()
+	float CurrentStateDuration = 0.f;
 	
 	UPROPERTY()
 	float CurrentRechargeTime = 0.f;

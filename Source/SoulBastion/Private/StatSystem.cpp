@@ -222,18 +222,22 @@ void UStatSystem::ModifyStat(AActor* SourceModifier, const FGameplayTag Tag, con
     }
 }
 
-bool UStatSystem::TakeDamage(const FHitInfo InHitInfo, float& OutDamageTaken)
+void UStatSystem::TakeDamage(const FHitInfo InHitInfo, const bool IgnoreArmor, float& OutDamageTaken)
 {
-    if (IsDamageImmune || InHitInfo.DamageAmount <= 0.f || !bIsAlive) { return false; }
+    if (InHitInfo.DamageAmount <= 0.f || !bIsAlive) { return; }
 
     const FGameplayTag HealthTag = FGameplayTag::RequestGameplayTag("Stat.Health");
     const FGameplayTag ArmorTag  = FGameplayTag::RequestGameplayTag("Stat.Armor");
-
-    const float DamageAfterArmor = FMath::Max(0.f, InHitInfo.DamageAmount - GetStatValue(ArmorTag, EStatValueType::Value));
     
-    ModifyStat(InHitInfo.SourceActor, HealthTag, EStatValueType::BaseValue, -DamageAfterArmor);
+    if (!IgnoreArmor)
+    {
+        const float DamageAfterArmor = FMath::Max(0.f, InHitInfo.DamageAmount - GetStatValue(ArmorTag, EStatValueType::Value)); 
+        ModifyStat(InHitInfo.SourceActor, HealthTag, EStatValueType::BaseValue, -DamageAfterArmor);
+        OutDamageTaken = DamageAfterArmor;
+        
+        return;
+    }
     
-    OutDamageTaken = DamageAfterArmor;
-    return true;
+    ModifyStat(InHitInfo.SourceActor, HealthTag, EStatValueType::BaseValue, -InHitInfo.DamageAmount);
 }
 

@@ -9,9 +9,7 @@ enum class ESkillState : uint8
 	Ready UMETA(DisplayName = "Ready"),
 	Windup UMETA(DisplayName = "Windup"),
 	Active UMETA(DisplayName = "Active"),
-	Recovery UMETA(DisplayName = "Recovery"),
-	Cancelled UMETA(DisplayName = "Cancelled"),
-	Completed UMETA(DisplayName = "Completed")
+	Recovery UMETA(DisplayName = "Recovery")
 };
 UENUM(BlueprintType)
 enum class  EActivationInput : uint8
@@ -88,4 +86,14 @@ enum class EAbilityActivateResult : uint8
 	Failed_NoEnergy     UMETA(DisplayName="Not Enough Energy"),
 	Failed_NoCharges    UMETA(DisplayName="No Charges"),
 	Failed_Other        UMETA(DisplayName="Other")
+};
+UENUM(BlueprintType)
+enum class EHitResult : uint8
+{
+	None UMETA(DisplayName = "None"),
+	Damaged UMETA(DisplayName="Damaged"),
+	Blocked UMETA(DisplayName="Blocked"),
+	Parried UMETA(DisplayName="Parried"),
+	Dodged UMETA(DisplayName="Dodged"),
+	Clashed UMETA(DisplayName="Clashed"),
 };

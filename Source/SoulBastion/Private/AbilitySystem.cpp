@@ -182,16 +182,12 @@ void UAbilitySystem::TryActivateAbility(const FGameplayTag SkillTag, const FMyPl
         return;
     }
 
-    const bool bInterruptible =
-        IsStateInterruptible(
-            ActiveSkill->SkillState,
-            RequestedSkill->LowerPriorityInterruptWindow);
+    const bool bInterruptible = IsStateInterruptible(ActiveSkill->SkillState, RequestedSkill->LowerPriorityInterruptWindow);
 
     UE_LOG(LogTemp, Warning,
         TEXT("[Ability] Interruptible=%d CanActivate=%d BufferOpen=%d"),
         bInterruptible,
-        RequestedSkill->CanActivate_Implementation(SkillTag),
-        bBufferWindowOpen);
+        RequestedSkill->CanActivate_Implementation(SkillTag),bBufferWindowOpen);
 
     if (RequestedSkill->CanActivate_Implementation(SkillTag) && bInterruptible)
     {
@@ -251,10 +247,11 @@ void UAbilitySystem::SetActiveSkillState(const ESkillState NewState, const float
 	}
 
 	ActiveSkill->SkillState = NewState;
+	ActiveSkill->CurrentStateDuration = StateDuration;
 	OnActiveSkillStateChanged.Broadcast(ActiveSkill->SkillTag, NewState, StateDuration);
 }
 
-FSkillData UAbilitySystem::GetSkillData(FGameplayTag SkillTag) const
+FSkillData UAbilitySystem::GetSkillData(const FGameplayTag SkillTag) const
 {
 	for (USkillBase* Skill : SkillInstances)
 	{
@@ -334,7 +331,7 @@ void UAbilitySystem::PlayAbilityMontage(const FAbilityMontageParams& Params, con
 	TimerDel.BindUObject(this, &UAbilitySystem::UpdateMontageTick, Params.MontageToPlay, Params, Params.PlayRateMultiplayer);
 	GetWorld()->GetTimerManager().SetTimer(MontageUpdateTimerHandle, TimerDel, 0.0167, true);
 }
-void UAbilitySystem::ApplyMotionWarp(bool bUseWarp, const FAbilityMontageParams& Params)
+void UAbilitySystem::ApplyMotionWarp(bool bUseWarp, const FAbilityMontageParams& Params) const
 {
 	if (!bUseWarp || !MotionWarpingComponentRef)
 		return;
@@ -414,12 +411,7 @@ void UAbilitySystem::ApplyMotionWarp(bool bUseWarp, const FAbilityMontageParams&
 		}
 	}
 	
-	
-	MotionWarpingComponentRef->AddOrUpdateWarpTargetFromLocationAndRotation(
-		Params.WarpName,
-		WarpLoc,
-		WarpRot
-	);
+	MotionWarpingComponentRef->AddOrUpdateWarpTargetFromLocationAndRotation(Params.WarpName, WarpLoc, WarpRot);
 	
 }
 
@@ -500,7 +492,7 @@ void UAbilitySystem::OnMontageStartHandler(UAnimMontage* Montage)
 		ActiveSkill = Skill;
 
 		// Update skill state
-		Skill->SkillState = ESkillState::Windup;
+		SetActiveSkillState(ESkillState::Active, 0.0f);
 		
 		ActiveActionTag = ActiveSkill->ActivationGrantedOwnerTag; 
 
@@ -604,7 +596,34 @@ void UAbilitySystem::HandleNotifyBegin(FName NotifyName, const FBranchingPointNo
 	OnMontageEvent.Broadcast(Data);
 }
 
-void UAbilitySystem::HitResponse(const FHitInfo InHitInfo) const
+EHitResult UAbilitySystem::HitResponse(const FHitInfo InHitInfo) const
 {
-	OnHitResponse.Broadcast(InHitInfo);
+	const FGameplayTag HealthTag = FGameplayTag::RequestGameplayTag("Stat.Health");
+	const FGameplayTag ArmorTag  = FGameplayTag::RequestGameplayTag("Stat.Armor");
+	
+	if (ActiveActionTag == FGameplayTag::EmptyTag)
+	{
+		StatSystemRef-> ModifyStat(InHitInfo.SourceActor, HealthTag, EStatValueType::BaseValue, -InHitInfo.DamageAmount);
+		OnHitResponse.Broadcast(InHitInfo);
+		return EHitResult::Damaged;
+	}
+	if (ActiveActionTag == FGameplayTag::RequestGameplayTag("Combat.Attacking"))
+	{
+		StatSystemRef-> ModifyStat(InHitInfo.SourceActor, HealthTag, EStatValueType::BaseValue, -InHitInfo.DamageAmount);
+		OnHitResponse.Broadcast(InHitInfo);
+		return EHitResult::Clashed;
+	}
+	if (ActiveActionTag ==  FGameplayTag::RequestGameplayTag("Combat.Blocking"))
+	{
+		const float DamageAfterArmor = FMath::Max(0.f, InHitInfo.DamageAmount - StatSystemRef->GetStatValue(ArmorTag, EStatValueType::Value));
+		StatSystemRef-> ModifyStat(InHitInfo.SourceActor, HealthTag, EStatValueType::BaseValue, -DamageAfterArmor);
+		OnHitResponse.Broadcast(InHitInfo);
+		return EHitResult::Blocked;
+	}
+	if (ActiveActionTag == FGameplayTag::RequestGameplayTag("Combat.Dodging"))
+	{
+		return EHitResult::Dodged;
+	}
+	
+	return EHitResult::None;
 }

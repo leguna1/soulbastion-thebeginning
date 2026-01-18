@@ -54,7 +54,7 @@ public:
     
     //Setts and Modifiers    
     UFUNCTION(BlueprintCallable, Category="Stats")
-    bool TakeDamage(FHitInfo InHitInfo, float& OutDamageTaken);
+    void TakeDamage(FHitInfo InHitInfo, bool IgnoreArmor, float& OutDamageTaken);
     
     
     UFUNCTION(BlueprintCallable, Category="Stat System | Modifier")
@@ -90,9 +90,6 @@ public:
     
     UPROPERTY(BlueprintReadOnly)
     FGameplayTag Status;
-    
-    UPROPERTY(VisibleAnywhere, BlueprintReadWrite, Category="Stats")
-    bool IsDamageImmune = false;
     
     UPROPERTY(VisibleAnywhere, BlueprintReadWrite, Category="Stats")
     bool bIsAlive = true;

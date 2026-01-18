@@ -31,7 +31,7 @@ struct FSoulForceData
 	FGameplayTag StatTag = FGameplayTag::EmptyTag;
 	
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
-	FText Description;
+	FText Description = FText::GetEmpty();
 	
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
 	int32 SoulForceLevel = 0;
@@ -99,8 +99,7 @@ struct FTargetInfo
 	
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Targeting")
 	float Distance = 0.0f;
-
-	FTargetInfo() = default;
+	
 };
 
 
@@ -244,7 +243,7 @@ struct FSkillData
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Data | Structs")
 	int32 MaxCharge = 1;
 	
-	UPROPERTY(BlueprintReadOnly, Category="Data | Structs")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Data | Structs")
 	int32 CurrentCharge = 1;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Data | Structs")
@@ -326,7 +325,7 @@ struct FStatChangedEvent
 	UPROPERTY(BlueprintReadOnly)
 	float Delta = 0.f;
 	
-	FStatChangedEvent() : ChangeSource(nullptr), StatTag(), Delta(0) {}
+	
 };
 USTRUCT(BlueprintType)
 struct FHitInfo
@@ -337,6 +336,9 @@ struct FHitInfo
 	
 	UPROPERTY(VisibleAnywhere, BlueprintReadWrite)
 	FGameplayTag SourceTag = FGameplayTag::EmptyTag;
+	
+	UPROPERTY(VisibleAnywhere, BlueprintReadWrite)
+	float StateDuration = 0.f;
 	
 	UPROPERTY(VisibleAnywhere, BlueprintReadWrite)
 	float  DamageAmount = 0.f;
@@ -355,12 +357,8 @@ struct FOnDeathEvent
 	GENERATED_BODY()
 
 	UPROPERTY(BlueprintReadOnly)
-	AActor* Killer;          // Who caused death
+	AActor* Killer = nullptr;          // Who caused death
 
 	UPROPERTY(BlueprintReadOnly)
-	float Damage;            // Killing blow value
-
-	FOnDeathEvent()
-		: Killer(nullptr), Damage(0.f)
-	{}
+	float Damage = 0.f;            // Killing blow value
 };
