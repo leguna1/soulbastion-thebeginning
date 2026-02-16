@@ -51,6 +51,11 @@ bool USkillBase::CanActivate_Implementation(FGameplayTag Tag)
 	
 }
 
+void USkillBase::Activate_Implementation()
+{
+	
+}
+
 void USkillBase::BeginRecharge(int32 ChargeToConsume)
 {
 	if (SkillData.CurrentCharge <= 0)

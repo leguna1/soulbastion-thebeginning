@@ -37,7 +37,8 @@ public:
 	bool CanActivate(FGameplayTag Tag);
 	virtual bool CanActivate_Implementation(FGameplayTag Tag);
 	
-	
+	UFUNCTION(BlueprintCallable, BlueprintNativeEvent, Category = "Skill")
+	void Activate();
 	
 	UFUNCTION(BlueprintCallable, Category="Skill | Timing")
 	void BeginRecharge(int32 ChargeToConsume = 1);

@@ -159,6 +159,7 @@ void UAbilitySystem::TryActivateAbility(const FGameplayTag SkillTag, const FMyPl
         {
             UE_LOG(LogTemp, Warning, TEXT("[Ability] Self-interrupt → Reactivate"));
             OnActivationInput.Broadcast(SkillTag, PlayerInput);
+        	
         }
         else if (bBufferWindowOpen)
         {
@@ -624,6 +625,5 @@ EHitResult UAbilitySystem::HitResponse(const FHitInfo InHitInfo) const
 	{
 		return EHitResult::Dodged;
 	}
-	
 	return EHitResult::None;
 }
